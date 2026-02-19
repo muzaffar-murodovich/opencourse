@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}{{ lesson.title }} — Ochiq kurs{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb">
+  <a href="{% url 'learning:skill_detail' parent_skill.slug %}">{{ parent_skill.title }}</a>
+  &rsaquo;
+  <a href="{% url 'learning:nested_skill_detail' parent_skill.slug child_skill.slug %}">{{ child_skill.title }}</a>
+  &rsaquo; {{ lesson.title }}
+</nav>
+
+<h1>{{ lesson.title }}</h1>
+
+<!-- YouTube embed -->
+<div class="video-wrapper">
+  <iframe
+    src="https://www.youtube.com/embed/{{ lesson.youtube_video_id }}"
+    title="{{ lesson.title }}"
+    frameborder="0"
+    referrerpolicy="strict-origin-when-cross-origin"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+    allowfullscreen
+    >
+  </iframe>
+</div>
+
+{% if lesson.description %}
+  <p class="description">{{ lesson.description }}</p>
+{% endif %}
+
+<!-- Mark complete -->
+<div class="complete-section">
+  {% if progress.is_completed %}
+    <p class="completed-badge">&#10003; Completed</p>
+  {% else %}
+    <button
+      id="btn-complete"
+      class="btn-primary"
+      data-url="{% url 'learning:mark_complete' parent_skill.slug child_skill.slug lesson.slug %}"
+    >
+      Tugatilgan deb belgilash
+    </button>
+  {% endif %}
+</div>
+
+<!-- Prev / Next navigation -->
+<div class="lesson-nav">
+  {% if prev_lesson %}
+    <a class="btn-secondary" href="{% url 'learning:lesson_detail' parent_skill.slug child_skill.slug prev_lesson.slug %}">
+      &larr; {{ prev_lesson.title }}
+    </a>
+  {% else %}
+    <span></span>
+  {% endif %}
+  {% if next_lesson %}
+    <a class="btn-secondary" href="{% url 'learning:lesson_detail' parent_skill.slug child_skill.slug next_lesson.slug %}">
+      {{ next_lesson.title }} &rarr;
+    </a>
+  {% endif %}
+</div>
+
+<script>
+(function () {
+  var btn = document.getElementById('btn-complete');
+  if (!btn) return;
+
+  btn.addEventListener('click', function () {
+    var url = btn.dataset.url;
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': '{{ csrf_token }}',
+        'Content-Type': 'application/json',
+      },
+      credentials: 'same-origin',
+    })
+    .then(function (res) { return res.json(); })
+    .then(function (data) {
+      if (data.status === 'ok') {
+        var badge = document.createElement('p');
+        badge.className = 'completed-badge';
+        badge.textContent = '\u2713 Completed';
+        btn.parentNode.replaceChild(badge, btn);
+      }
+    })
+    .catch(function (err) { console.error('Error marking lesson complete:', err); });
+  });
+}());
+</script>
+{% endblock %}

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Ochiq Kurs{% endblock %}</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+
+  <!-- Top navbar -->
+  <header class="navbar">
+    <a href="{% url 'home' %}" class="navbar-logo">Ochiq Kurs</a>
+    <nav class="navbar-links">
+      <a href="{% url 'learning:skill_list' %}" class="navbar-link">Malaka</a>
+      {% if user.is_authenticated %}
+        <span class="navbar-user">{{ user.username }}</span>
+        <form method="post" action="{% url 'users:logout' %}" class="navbar-logout-form">
+          {% csrf_token %}
+          <button type="submit" class="navbar-btn navbar-btn-outline">Logout</button>
+        </form>
+      {% else %}
+        <a href="{% url 'users:login' %}" class="navbar-btn navbar-btn-primary">Login</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <div class="layout">
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-header">
+        <a href="/malaka/" class="site-logo">Ochiq Kurs</a>
+      </div>
+
+      {% if user.is_authenticated %}
+      <ul class="skill-list">
+        {% for skill in top_level_skills %}
+        <li class="skill-item {% if skill == parent_skill %}active{% endif %}">
+          <a href="{% url 'learning:skill_detail' skill.slug %}">
+            {{ skill.title }}
+          </a>
+          {% if skill == parent_skill and child_skills %}
+          <ul class="child-skill-list">
+            {% for child in child_skills %}
+            <li class="child-skill-item {% if child == child_skill %}active{% endif %}">
+              <a href="{% url 'learning:nested_skill_detail' parent_skill.slug child.slug %}">
+                {{ child.title }}
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </li>
+        {% empty %}
+        <li class="skill-item">No topics yet.</li>
+        {% endfor %}
+      </ul>
+
+      <div class="sidebar-footer">
+        <span class="sidebar-username">{{ user.username }}</span>
+        <form method="post" action="{% url 'users:logout' %}">
+          {% csrf_token %}
+          <button type="submit" class="btn-logout">Logout</button>
+        </form>
+      </div>
+
+      {% else %}
+      <div class="sidebar-auth">
+        <a href="{% url 'users:login' %}" class="btn-login">Login</a>
+      </div>
+      {% endif %}
+    </nav>
+
+    <!-- Main content -->
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+
+  </div>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Malakalar – Ochiq Kurs{% endblock %}
+
+{% block content %}
+<h1>Malakalar</h1>
+<p class="description">O'rganmoqchi bo'lgan mavzuni tanlang.</p>
+
+{% if skills %}
+  <div class="card-grid">
+    {% for skill in skills %}
+    <a class="card" href="{% url 'learning:skill_detail' skill.slug %}">
+      <h2>{{ skill.title }}</h2>
+      {% if skill.description %}
+        <p>{{ skill.description }}</p>
+      {% endif %}
+      <span class="card-lesson-count">
+        {{ skill.children.count }} bo'lim
+      </span>
+    </a>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="empty-message">Hali malakalar qo'shilmagan.</p>
+{% endif %}
+{% endblock %}

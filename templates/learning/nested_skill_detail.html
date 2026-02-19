@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}{{ child_skill.title }} – Ochiq Kurs{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb">
+  <a href="{% url 'learning:skill_detail' parent_skill.slug %}">{{ parent_skill.title }}</a>
+  &rsaquo; {{ child_skill.title }}
+</nav>
+
+<h1>{{ child_skill.title }}</h1>
+{% if child_skill.description %}
+  <p class="description">{{ child_skill.description }}</p>
+{% endif %}
+
+{% if lessons %}
+<ul class="lesson-list">
+  {% for lesson in lessons %}
+  <li class="lesson-item {% if lesson.progress and lesson.progress.is_completed %}completed{% endif %}">
+    <a href="{% url 'learning:lesson_detail' parent_skill.slug child_skill.slug lesson.slug %}">
+      {% if lesson.progress and lesson.progress.is_completed %}
+        <span class="check">&#10003;</span>
+      {% else %}
+        <span class="lesson-number">{{ forloop.counter }}</span>
+      {% endif %}
+      {{ lesson.title }}
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+  <p class="empty-message">No lessons yet. Check back soon.</p>
+{% endif %}
+{% endblock %}
