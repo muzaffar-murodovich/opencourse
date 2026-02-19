@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Ochiq Kurs{% endblock %}</title>
+  <title>{% block title %}Ochiq kurs{% endblock %}</title>
   {% load static %}
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
@@ -11,7 +11,7 @@
 
   <!-- Top navbar -->
   <header class="navbar">
-    <a href="{% url 'home' %}" class="navbar-logo">Ochiq Kurs</a>
+    <a href="{% url 'home' %}" class="navbar-logo">Ochiq kurs</a>
     <nav class="navbar-links">
       <a href="{% url 'learning:skill_list' %}" class="navbar-link">Malaka</a>
       {% if user.is_authenticated %}
@@ -31,7 +31,7 @@
     <!-- Sidebar -->
     <nav class="sidebar">
       <div class="sidebar-header">
-        <a href="/malaka/" class="site-logo">Ochiq Kurs</a>
+        <a href="/malaka/" class="site-logo">Ochiq kurs</a>
       </div>
 
       {% if user.is_authenticated %}
@@ -58,13 +58,13 @@
         {% endfor %}
       </ul>
 
-      <div class="sidebar-footer">
+      <!-- <div class="sidebar-footer">
         <span class="sidebar-username">{{ user.username }}</span>
         <form method="post" action="{% url 'users:logout' %}">
           {% csrf_token %}
           <button type="submit" class="btn-logout">Logout</button>
         </form>
-      </div>
+      </div> -->
 
       {% else %}
       <div class="sidebar-auth">

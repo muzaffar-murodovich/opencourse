@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ochiq Kurs</title>
+  <title>Ochiq kurs</title>
   {% load static %}
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
@@ -11,7 +11,7 @@
 
   <!-- Top navbar -->
   <header class="navbar">
-    <a href="{% url 'home' %}" class="navbar-logo">Ochiq Kurs</a>
+    <a href="{% url 'home' %}" class="navbar-logo">Ochiq kurs</a>
     <nav class="navbar-links">
       <a href="{% url 'learning:skill_list' %}" class="navbar-link">Malaka</a>
       {% if user.is_authenticated %}
