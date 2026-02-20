@@ -4,9 +4,9 @@
 
 {% block content %}
 <nav class="breadcrumb">
-  <a href="{% url 'learning:skill_detail' parent_skill.slug %}">{{ parent_skill.title }}</a>
+  <a href="{% url 'learning:skill_detail' skill.slug %}">{{ skill.title }}</a>
   &rsaquo;
-  <a href="{% url 'learning:nested_skill_detail' parent_skill.slug child_skill.slug %}">{{ child_skill.title }}</a>
+  <a href="{% url 'learning:subskill_detail' skill.slug subskill.slug %}">{{ subskill.title }}</a>
   &rsaquo; {{ lesson.title }}
 </nav>
 
@@ -37,7 +37,7 @@
     <button
       id="btn-complete"
       class="btn-primary"
-      data-url="{% url 'learning:mark_complete' parent_skill.slug child_skill.slug lesson.slug %}"
+      data-url="{% url 'learning:mark_complete' skill.slug subskill.slug lesson.slug %}"
     >
       Tugatilgan deb belgilash
     </button>
@@ -47,14 +47,14 @@
 <!-- Prev / Next navigation -->
 <div class="lesson-nav">
   {% if prev_lesson %}
-    <a class="btn-secondary" href="{% url 'learning:lesson_detail' parent_skill.slug child_skill.slug prev_lesson.slug %}">
+    <a class="btn-secondary" href="{% url 'learning:lesson_detail' skill.slug subskill.slug prev_lesson.slug %}">
       &larr; {{ prev_lesson.title }}
     </a>
   {% else %}
     <span></span>
   {% endif %}
   {% if next_lesson %}
-    <a class="btn-secondary" href="{% url 'learning:lesson_detail' parent_skill.slug child_skill.slug next_lesson.slug %}">
+    <a class="btn-secondary" href="{% url 'learning:lesson_detail' skill.slug subskill.slug next_lesson.slug %}">
       {{ next_lesson.title }} &rarr;
     </a>
   {% endif %}

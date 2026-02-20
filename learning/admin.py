@@ -1,23 +1,31 @@
 from django.contrib import admin
-from .models import Lesson, LessonProgress, Skill
+from .models import Lesson, LessonProgress, Skill, Subskill
 
 
 @admin.register(Skill)
 class SkillAdmin(admin.ModelAdmin):
-    list_display = ['title', 'parent', 'order']
-    list_filter = ['parent']
+    list_display = ['title', 'order']
     search_fields = ['title']
     prepopulated_fields = {'slug': ('title',)}
-    ordering = ['parent', 'order']
+    ordering = ['order']
 
 
-@admin.register(Lesson)
-class LessonAdmin(admin.ModelAdmin):
+@admin.register(Subskill)
+class SubskillAdmin(admin.ModelAdmin):
     list_display = ['title', 'skill', 'order']
     list_filter = ['skill']
     search_fields = ['title']
     prepopulated_fields = {'slug': ('title',)}
     ordering = ['skill', 'order']
+
+
+@admin.register(Lesson)
+class LessonAdmin(admin.ModelAdmin):
+    list_display = ['title', 'subskill', 'order']
+    list_filter = ['subskill']
+    search_fields = ['title']
+    prepopulated_fields = {'slug': ('title',)}
+    ordering = ['subskill', 'order']
 
 
 @admin.register(LessonProgress)

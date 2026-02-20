@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views import View
 
-from .models import Lesson, LessonProgress, Skill
+from .models import Lesson, LessonProgress, Skill, Subskill
 
 
 # ---------------------------------------------------------------------------
@@ -15,64 +15,59 @@ class HomeView(View):
     template_name = 'home.html'
 
     def get(self, request):
-        skills = Skill.objects.filter(parent__isnull=True).order_by('order')
+        skills = Skill.objects.all()
         return render(request, self.template_name, {'skills': skills})
 
 
 # ---------------------------------------------------------------------------
-# /malaka/ (all top-level skills — requires login)
+# /malaka/ (all skills — public)
 # ---------------------------------------------------------------------------
 
 class SkillListView(View):
     template_name = 'learning/skill_list.html'
 
     def get(self, request):
-        skills = Skill.objects.filter(parent__isnull=True).order_by('order')
+        skills = Skill.objects.all()
         return render(request, self.template_name, {
             'skills': skills,
-            'top_level_skills': skills,
         })
 
 
 # ---------------------------------------------------------------------------
-# /malaka/<parent_slug>/
+# /malaka/<skill_slug>/
 # ---------------------------------------------------------------------------
 
 class SkillDetailView(LoginRequiredMixin, View):
     template_name = 'learning/skill_detail.html'
 
-    def get(self, request, parent_slug):
-        parent_skill = get_object_or_404(
-            Skill,
-            slug=parent_slug,
-            parent__isnull=True,
-        )
-        top_level_skills = Skill.objects.filter(parent__isnull=True).order_by('order')
-        child_skills = (
-            parent_skill.children
+    def get(self, request, skill_slug):
+        skill = get_object_or_404(Skill, slug=skill_slug)
+        skills = Skill.objects.all()
+        subskills = (
+            skill.subskills
             .prefetch_related('lessons')
             .order_by('order')
         )
         ctx = {
-            'parent_skill': parent_skill,
-            'top_level_skills': top_level_skills,
-            'child_skills': child_skills,
+            'skill': skill,
+            'skills': skills,
+            'subskills': subskills,
         }
         return render(request, self.template_name, ctx)
 
 
 # ---------------------------------------------------------------------------
-# /malaka/<parent_slug>/<child_slug>/
+# /malaka/<skill_slug>/<subskill_slug>/
 # ---------------------------------------------------------------------------
 
-class NestedSkillDetailView(LoginRequiredMixin, View):
-    template_name = 'learning/nested_skill_detail.html'
+class SubskillDetailView(LoginRequiredMixin, View):
+    template_name = 'learning/subskill_detail.html'
 
-    def get(self, request, parent_slug, child_slug):
-        parent_skill = get_object_or_404(Skill, slug=parent_slug, parent__isnull=True)
-        child_skill = get_object_or_404(Skill, slug=child_slug, parent=parent_skill)
+    def get(self, request, skill_slug, subskill_slug):
+        skill = get_object_or_404(Skill, slug=skill_slug)
+        subskill = get_object_or_404(Subskill, slug=subskill_slug, skill=skill)
 
-        lessons = list(child_skill.lessons.order_by('order'))
+        lessons = list(subskill.lessons.order_by('order'))
         lesson_ids = [lesson.id for lesson in lessons]
 
         progress_map = {
@@ -82,52 +77,51 @@ class NestedSkillDetailView(LoginRequiredMixin, View):
                 lesson_id__in=lesson_ids,
             )
         }
-        # Annotate each lesson with its progress object (or None)
         for lesson in lessons:
             lesson.progress = progress_map.get(lesson.id)
 
-        top_level_skills = Skill.objects.filter(parent__isnull=True).order_by('order')
+        skills = Skill.objects.all()
 
         ctx = {
-            'top_level_skills': top_level_skills,
-            'parent_skill': parent_skill,
-            'child_skill': child_skill,
+            'skills': skills,
+            'skill': skill,
+            'subskill': subskill,
             'lessons': lessons,
         }
         return render(request, self.template_name, ctx)
 
 
 # ---------------------------------------------------------------------------
-# /malaka/<parent_slug>/<child_slug>/<lesson_slug>/
+# /malaka/<skill_slug>/<subskill_slug>/<lesson_slug>/
 # ---------------------------------------------------------------------------
 
 class LessonDetailView(LoginRequiredMixin, View):
     template_name = 'learning/lesson_detail.html'
 
-    def get(self, request, parent_slug, child_slug, lesson_slug):
-        parent_skill = get_object_or_404(Skill, slug=parent_slug, parent__isnull=True)
-        child_skill = get_object_or_404(Skill, slug=child_slug, parent=parent_skill)
-        lesson = get_object_or_404(Lesson, slug=lesson_slug, skill=child_skill)
+    def get(self, request, skill_slug, subskill_slug, lesson_slug):
+        skill = get_object_or_404(Skill, slug=skill_slug)
+        subskill = get_object_or_404(Subskill, slug=subskill_slug, skill=skill)
+        lesson = get_object_or_404(Lesson, slug=lesson_slug, subskill=subskill)
 
         progress, _ = LessonProgress.objects.get_or_create(
             user=request.user, lesson=lesson
         )
 
-        sibling_lessons = list(child_skill.lessons.order_by('order'))
+        sibling_lessons = list(subskill.lessons.order_by('order'))
         current_index = next(
             (i for i, l in enumerate(sibling_lessons) if l.id == lesson.id), None
         )
         prev_lesson = sibling_lessons[current_index - 1] if current_index and current_index > 0 else None
         next_lesson = sibling_lessons[current_index + 1] if current_index is not None and current_index < len(sibling_lessons) - 1 else None
 
-        top_level_skills = Skill.objects.filter(parent__isnull=True).order_by('order')
-        child_skills = parent_skill.children.order_by('order')
+        skills = Skill.objects.all()
+        subskills = skill.subskills.order_by('order')
 
         ctx = {
-            'top_level_skills': top_level_skills,
-            'child_skills': child_skills,
-            'parent_skill': parent_skill,
-            'child_skill': child_skill,
+            'skills': skills,
+            'subskills': subskills,
+            'skill': skill,
+            'subskill': subskill,
             'lesson': lesson,
             'progress': progress,
             'prev_lesson': prev_lesson,
@@ -137,17 +131,17 @@ class LessonDetailView(LoginRequiredMixin, View):
 
 
 # ---------------------------------------------------------------------------
-# POST /malaka/<parent_slug>/<child_slug>/<lesson_slug>/complete/
+# POST /malaka/<skill_slug>/<subskill_slug>/<lesson_slug>/complete/
 # ---------------------------------------------------------------------------
 
 @login_required
-def mark_lesson_complete(request, parent_slug, child_slug, lesson_slug):
+def mark_lesson_complete(request, skill_slug, subskill_slug, lesson_slug):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
-    parent_skill = get_object_or_404(Skill, slug=parent_slug, parent__isnull=True)
-    child_skill = get_object_or_404(Skill, slug=child_slug, parent=parent_skill)
-    lesson = get_object_or_404(Lesson, slug=lesson_slug, skill=child_skill)
+    skill = get_object_or_404(Skill, slug=skill_slug)
+    subskill = get_object_or_404(Subskill, slug=subskill_slug, skill=skill)
+    lesson = get_object_or_404(Lesson, slug=lesson_slug, subskill=subskill)
 
     progress, _ = LessonProgress.objects.get_or_create(
         user=request.user, lesson=lesson
