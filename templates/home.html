@@ -1,41 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ochiq kurs</title>
-  {% load static %}
-  <link rel="stylesheet" href="{% static 'css/style.css' %}">
-</head>
-<body class="home-body">
+{% extends 'base.html' %}
 
-  <!-- Top navbar -->
-  <header class="navbar">
-    <a href="{% url 'home' %}" class="navbar-logo">Ochiq kurs</a>
-    <nav class="navbar-links">
-      <a href="{% url 'learning:skill_list' %}" class="navbar-link">Malaka</a>
-      {% if user.is_authenticated %}
-        <a href="{% url 'users:profile' %}" class="navbar-link">Profile</a>
-        <span class="navbar-user">{{ user.username }}</span>
-        <form method="post" action="{% url 'users:logout' %}" class="navbar-logout-form">
-          {% csrf_token %}
-          <button type="submit" class="navbar-btn navbar-btn-outline">Logout</button>
-        </form>
-      {% else %}
-        <a href="{% url 'users:signup' %}" class="navbar-btn navbar-btn-secondary">Signup</a>
-        <a href="{% url 'users:login' %}" class="navbar-btn navbar-btn-primary">Login</a>
-      {% endif %}
-    </nav>
-  </header>
+{% block title %}Ochiq kurs{% endblock %}
 
-  <!-- Hero -->
+{% block content %}
   <section class="hero">
-    <h1 class="hero-title">O'zingizni rivojlantiring</h1>
-    <p class="hero-subtitle">Video darslar orqali yangi ko'nikmalarni o'rganing.</p>
-    <a href="{% url 'learning:skill_list' %}" class="hero-cta">Malakalarga o'tish &rarr;</a>
+    <div class="hero-inner">
+      <h1 class="hero-title">O'zingizni rivojlantiring</h1>
+      <p class="hero-subtitle">Video darslar orqali yangi ko'nikmalarni o'rganing.</p>
+      <a href="{% url 'learning:skill_list' %}" class="hero-cta">Malakalarga o'tish &rarr;</a>
+    </div>
   </section>
 
-  <!-- Skills grid -->
   {% if skills %}
   <section class="home-skills">
     <h2 class="home-section-title">Mavjud Malakalar</h2>
@@ -51,6 +26,4 @@
     </div>
   </section>
   {% endif %}
-
-</body>
-</html>
+{% endblock %}
