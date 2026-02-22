@@ -15,19 +15,22 @@
     <nav class="navbar-links">
       <a href="{% url 'learning:skill_list' %}" class="navbar-link">Malaka</a>
       {% if user.is_authenticated %}
+        <a href="{% url 'users:profile' %}" class="navbar-link">Profile</a>
         <span class="navbar-user">{{ user.username }}</span>
         <form method="post" action="{% url 'users:logout' %}" class="navbar-logout-form">
           {% csrf_token %}
           <button type="submit" class="navbar-btn navbar-btn-outline">Logout</button>
         </form>
       {% else %}
+        <a href="{% url 'users:signup' %}" class="navbar-btn navbar-btn-secondary">Signup</a>
         <a href="{% url 'users:login' %}" class="navbar-btn navbar-btn-primary">Login</a>
       {% endif %}
     </nav>
   </header>
 
-  <div class="layout">
+  <div class="layout{% if '/malaka/' in request.path %} layout-with-sidebar{% endif %}">
 
+    {% if '/malaka/' in request.path %}
     <!-- Sidebar -->
     <nav class="sidebar">
       <div class="sidebar-header">
@@ -57,24 +60,23 @@
         <li class="skill-item">No topics yet.</li>
         {% endfor %}
       </ul>
-
-      <!-- <div class="sidebar-footer">
-        <span class="sidebar-username">{{ user.username }}</span>
-        <form method="post" action="{% url 'users:logout' %}">
-          {% csrf_token %}
-          <button type="submit" class="btn-logout">Logout</button>
-        </form>
-      </div> -->
-
       {% else %}
       <div class="sidebar-auth">
         <a href="{% url 'users:login' %}" class="btn-login">Login</a>
       </div>
       {% endif %}
     </nav>
+    {% endif %}
 
     <!-- Main content -->
-    <main class="content">
+    <main class="content{% if '/malaka/' not in request.path %} content-full{% endif %}">
+      {% if messages %}
+        <div class="messages">
+          {% for message in messages %}
+            <div class="message {{ message.tags }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
       {% block content %}{% endblock %}
     </main>
 

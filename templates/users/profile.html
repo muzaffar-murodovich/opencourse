@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block title %}Profile - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <h1>Profile</h1>
+    
+    <div class="profile-section">
+        <h2>Edit Your Information</h2>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-primary">Update Profile</button>
+        </form>
+    </div>
+    
+    {% if is_admin %}
+    <div class="profile-section">
+        <h2>Admin Panel</h2>
+        <p>As an admin, you can manage the learning content.</p>
+        <a href="{% url 'users:admin_panel' %}" class="btn btn-secondary">Go to Admin Panel</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

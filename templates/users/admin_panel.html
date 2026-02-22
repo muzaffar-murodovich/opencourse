@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Panel - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <h1>Admin Panel</h1>
+    <p>Manage learning content here.</p>
+    
+    <div class="admin-section">
+        <h2>Add Skill</h2>
+        <form method="post">
+            {% csrf_token %}
+            {{ skill_form.as_p }}
+            <button type="submit" name="add_skill" class="btn btn-primary">Add Skill</button>
+        </form>
+    </div>
+    
+    <div class="admin-section">
+        <h2>Add Subskill</h2>
+        <form method="post">
+            {% csrf_token %}
+            {{ subskill_form.as_p }}
+            <button type="submit" name="add_subskill" class="btn btn-primary">Add Subskill</button>
+        </form>
+    </div>
+    
+    <div class="admin-section">
+        <h2>Add Lesson</h2>
+        <form method="post">
+            {% csrf_token %}
+            {{ lesson_form.as_p }}
+            <button type="submit" name="add_lesson" class="btn btn-primary">Add Lesson</button>
+        </form>
+    </div>
+    
+    <div class="admin-section">
+        <h2>Existing Skills</h2>
+        <ul>
+            {% for skill in skills %}
+            <li>{{ skill.title }} (Order: {{ skill.order }})</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}
