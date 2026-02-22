@@ -4,13 +4,14 @@ from django.contrib.auth.models import User
 from django.shortcuts import render, redirect
 from django.views import View
 from django.contrib import messages
-from django.contrib.auth.forms import UserChangeForm, UserCreationForm
+from django.contrib.auth.forms import UserCreationForm
 from django.urls import reverse
 from django.contrib.auth.decorators import user_passes_test
 from django.utils.decorators import method_decorator
 from django.views.generic import CreateView
 from learning.models import Skill, Subskill, Lesson
 from learning.forms import SkillForm, SubskillForm, LessonForm
+from .forms import UserProfileForm
 
 # Auth views are handled by django.contrib.auth.views (LoginView, LogoutView).
 
@@ -30,23 +31,26 @@ class ProfileView(LoginRequiredMixin, View):
 
     def get(self, request):
         user = request.user
-        form = UserChangeForm(instance=user)
+        form = UserProfileForm(instance=user)
         is_admin = user.is_staff or user.is_superuser
         return render(request, self.template_name, {
             'form': form,
             'is_admin': is_admin,
+            'user': user,
         })
 
     def post(self, request):
         user = request.user
-        form = UserChangeForm(request.POST, instance=user)
+        form = UserProfileForm(request.POST, instance=user)
         if form.is_valid():
             form.save()
             messages.success(request, 'Profile updated successfully.')
             return redirect('users:profile')
+        is_admin = user.is_staff or user.is_superuser
         return render(request, self.template_name, {
             'form': form,
-            'is_admin': user.is_staff or user.is_superuser,
+            'is_admin': is_admin,
+            'user': user,
         })
 
 
