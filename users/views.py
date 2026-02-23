@@ -58,46 +58,38 @@ class ProfileView(LoginRequiredMixin, View):
 class AdminPanelView(LoginRequiredMixin, View):
     template_name = 'users/admin_panel.html'
 
+    def _context(self, skill_form=None, subskill_form=None, lesson_form=None, active_tab='skill'):
+        return {
+            'skill_form': skill_form or SkillForm(prefix='skill'),
+            'subskill_form': subskill_form or SubskillForm(prefix='subskill'),
+            'lesson_form': lesson_form or LessonForm(prefix='lesson'),
+            'skills': Skill.objects.prefetch_related('subskills__lessons').all(),
+            'active_tab': active_tab,
+        }
+
     def get(self, request):
-        skill_form = SkillForm()
-        subskill_form = SubskillForm()
-        lesson_form = LessonForm()
-        skills = Skill.objects.all()
-        return render(request, self.template_name, {
-            'skill_form': skill_form,
-            'subskill_form': subskill_form,
-            'lesson_form': lesson_form,
-            'skills': skills,
-        })
+        return render(request, self.template_name, self._context())
 
     def post(self, request):
         if 'add_skill' in request.POST:
-            form = SkillForm(request.POST)
+            form = SkillForm(request.POST, prefix='skill')
             if form.is_valid():
                 form.save()
                 messages.success(request, 'Skill added successfully.')
                 return redirect('users:admin_panel')
+            return render(request, self.template_name, self._context(skill_form=form, active_tab='skill'))
         elif 'add_subskill' in request.POST:
-            form = SubskillForm(request.POST)
+            form = SubskillForm(request.POST, prefix='subskill')
             if form.is_valid():
                 form.save()
                 messages.success(request, 'Subskill added successfully.')
                 return redirect('users:admin_panel')
+            return render(request, self.template_name, self._context(subskill_form=form, active_tab='subskill'))
         elif 'add_lesson' in request.POST:
-            form = LessonForm(request.POST)
+            form = LessonForm(request.POST, prefix='lesson')
             if form.is_valid():
                 form.save()
                 messages.success(request, 'Lesson added successfully.')
                 return redirect('users:admin_panel')
-        
-        # If form invalid, re-render with errors
-        skill_form = SkillForm()
-        subskill_form = SubskillForm()
-        lesson_form = LessonForm()
-        skills = Skill.objects.all()
-        return render(request, self.template_name, {
-            'skill_form': skill_form,
-            'subskill_form': subskill_form,
-            'lesson_form': lesson_form,
-            'skills': skills,
-        })
+            return render(request, self.template_name, self._context(lesson_form=form, active_tab='lesson'))
+        return render(request, self.template_name, self._context())

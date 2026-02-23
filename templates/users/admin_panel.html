@@ -5,42 +5,245 @@
 {% block content %}
 <div class="admin-container">
     <h1>Admin Panel</h1>
-    <p>Manage learning content here.</p>
-    
-    <div class="admin-section">
+
+    {% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+        <li class="{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <!-- Tab buttons -->
+    <div class="admin-tabs">
+        <button class="tab-btn {% if active_tab == 'skill' %}active{% endif %}" data-tab="skill">Skill</button>
+        <button class="tab-btn {% if active_tab == 'subskill' %}active{% endif %}" data-tab="subskill">Subskill</button>
+        <button class="tab-btn {% if active_tab == 'lesson' %}active{% endif %}" data-tab="lesson">Lesson</button>
+    </div>
+
+    <!-- Skill form -->
+    <div class="admin-tab-panel {% if active_tab == 'skill' %}active{% endif %}" id="tab-skill">
         <h2>Add Skill</h2>
-        <form method="post">
+        <form method="post" class="admin-form">
             {% csrf_token %}
-            {{ skill_form.as_p }}
+            {% for field in skill_form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                <ul class="field-errors">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+            {% endfor %}
             <button type="submit" name="add_skill" class="btn btn-primary">Add Skill</button>
         </form>
     </div>
-    
-    <div class="admin-section">
+
+    <!-- Subskill form -->
+    <div class="admin-tab-panel {% if active_tab == 'subskill' %}active{% endif %}" id="tab-subskill">
         <h2>Add Subskill</h2>
-        <form method="post">
+        <form method="post" class="admin-form">
             {% csrf_token %}
-            {{ subskill_form.as_p }}
+            {% for field in subskill_form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                <ul class="field-errors">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+            {% endfor %}
             <button type="submit" name="add_subskill" class="btn btn-primary">Add Subskill</button>
         </form>
     </div>
-    
-    <div class="admin-section">
+
+    <!-- Lesson form -->
+    <div class="admin-tab-panel {% if active_tab == 'lesson' %}active{% endif %}" id="tab-lesson">
         <h2>Add Lesson</h2>
-        <form method="post">
+        <form method="post" class="admin-form">
             {% csrf_token %}
-            {{ lesson_form.as_p }}
+            {% for field in lesson_form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                <ul class="field-errors">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+            {% endfor %}
             <button type="submit" name="add_lesson" class="btn btn-primary">Add Lesson</button>
         </form>
     </div>
-    
-    <div class="admin-section">
-        <h2>Existing Skills</h2>
-        <ul>
-            {% for skill in skills %}
-            <li>{{ skill.title }} (Order: {{ skill.order }})</li>
+
+    <!-- Existing content tree -->
+    <div class="admin-section admin-content-tree">
+        <h2>Existing Content</h2>
+        {% if skills %}
+        {% for skill in skills %}
+        <details>
+            <summary>
+                <strong>{{ skill.title }}</strong>
+                <span class="slug-hint">{{ skill.slug }}</span>
+                <span class="count">({{ skill.subskills.count }} subskill{{ skill.subskills.count|pluralize }})</span>
+            </summary>
+            {% for subskill in skill.subskills.all %}
+            <details class="nested">
+                <summary>
+                    {{ subskill.title }}
+                    <span class="slug-hint">{{ subskill.slug }}</span>
+                    <span class="count">({{ subskill.lessons.count }} lesson{{ subskill.lessons.count|pluralize }})</span>
+                </summary>
+                <ul class="lesson-list">
+                    {% for lesson in subskill.lessons.all %}
+                    <li>{{ lesson.order }}. {{ lesson.title }} <span class="slug-hint">{{ lesson.slug }}</span></li>
+                    {% empty %}
+                    <li><em>No lessons yet.</em></li>
+                    {% endfor %}
+                </ul>
+            </details>
+            {% empty %}
+            <p class="empty-note">No subskills yet.</p>
             {% endfor %}
-        </ul>
+        </details>
+        {% endfor %}
+        {% else %}
+        <p>No content yet.</p>
+        {% endif %}
     </div>
 </div>
+
+<style>
+.admin-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 0;
+    border-bottom: 2px solid #ddd;
+}
+.tab-btn {
+    padding: 8px 20px;
+    border: 1px solid #ddd;
+    border-bottom: none;
+    background: #f5f5f5;
+    cursor: pointer;
+    border-radius: 4px 4px 0 0;
+    font-size: 14px;
+}
+.tab-btn.active {
+    background: #fff;
+    border-bottom: 2px solid #fff;
+    margin-bottom: -2px;
+    font-weight: bold;
+}
+.admin-tab-panel {
+    display: none;
+    border: 1px solid #ddd;
+    border-top: none;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+.admin-tab-panel.active {
+    display: block;
+}
+.admin-form .form-group {
+    margin-bottom: 14px;
+}
+.admin-form label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+.admin-form input,
+.admin-form select,
+.admin-form textarea {
+    width: 100%;
+    max-width: 480px;
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+.field-errors {
+    color: #c00;
+    margin: 4px 0 0;
+    padding-left: 16px;
+    font-size: 13px;
+}
+.admin-content-tree details {
+    margin-bottom: 8px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    padding: 6px 10px;
+}
+.admin-content-tree details.nested {
+    margin: 6px 0 6px 20px;
+}
+.admin-content-tree summary {
+    cursor: pointer;
+    user-select: none;
+}
+.slug-hint {
+    color: #888;
+    font-size: 12px;
+    margin-left: 6px;
+    font-family: monospace;
+}
+.count {
+    color: #aaa;
+    font-size: 12px;
+    margin-left: 4px;
+}
+.lesson-list {
+    margin: 6px 0 0 20px;
+    padding: 0;
+    list-style: none;
+    font-size: 14px;
+}
+.empty-note {
+    color: #aaa;
+    font-size: 13px;
+    padding-left: 20px;
+}
+</style>
+
+<script>
+(function () {
+    // Tab switching
+    var btns = document.querySelectorAll('.tab-btn');
+    var panels = document.querySelectorAll('.admin-tab-panel');
+    btns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            btns.forEach(function (b) { b.classList.remove('active'); });
+            panels.forEach(function (p) { p.classList.remove('active'); });
+            btn.classList.add('active');
+            document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        });
+    });
+
+    // Auto-slug generator
+    function slugify(text) {
+        return text.toLowerCase().trim()
+            .replace(/\s+/g, '-')
+            .replace(/[^\w\-]+/g, '')
+            .replace(/--+/g, '-')
+            .replace(/^-+|-+$/g, '');
+    }
+
+    function bindSlug(titleId, slugId) {
+        var t = document.getElementById(titleId);
+        var s = document.getElementById(slugId);
+        if (!t || !s) return;
+        t.addEventListener('input', function () {
+            if (!s.dataset.manual) s.value = slugify(t.value);
+        });
+        s.addEventListener('input', function () {
+            s.dataset.manual = s.value ? '1' : '';
+        });
+    }
+
+    bindSlug('id_skill-title', 'id_skill-slug');
+    bindSlug('id_subskill-title', 'id_subskill-slug');
+    bindSlug('id_lesson-title', 'id_lesson-slug');
+}());
+</script>
 {% endblock %}

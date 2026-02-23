@@ -23,10 +23,11 @@
         <form method="post" action="{% url 'users:logout' %}" class="navbar-logout-form">
           {% csrf_token %}
           <button type="submit" class="navbar-btn navbar-btn-outline">Logout</button>
+          <!-- <button type="submit" class="navbar-btn navbar-btn-primary">Logout</button> -->
         </form>
       {% else %}
-        <a href="{% url 'users:signup' %}" class="navbar-btn navbar-btn-secondary">Signup</a>
-        <a href="{% url 'users:login' %}" class="navbar-btn navbar-btn-primary">Login</a>
+        <a href="{% url 'users:signup' %}" class="navbar-btn navbar-btn-outline">Signup</a>
+        <a href="{% url 'users:login' %}" class="navbar-btn navbar-btn-outline">Login</a>
       {% endif %}
     </nav>
   </header>
