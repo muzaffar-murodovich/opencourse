@@ -856,11 +856,8 @@ a:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; b
 .lesson-desc { margin-bottom: 1.75rem; }
 
 /* ── Notes Section ──────────────────────────────── */
-.notes-section {
-  margin-top: 2.5rem;
-  padding-top: 1.75rem;
-  border-top: 1px solid var(--border);
-}
+/* .notes-section is only used on mobile stacked view now */
+.notes-section { margin-top: 0; padding-top: 0; border-top: none; }
 .notes-section > h3 {
   font-size: 1rem;
   font-weight: 700;
@@ -901,3 +898,55 @@ a:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; b
 }
 .note-status { font-size: .875rem; font-weight: 600; }
 .note-status-ok { color: var(--color-primary); }
+
+/* ── Lesson two-column grid ─────────────────────── */
+.lesson-grid {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 1.5rem;
+  align-items: start;
+}
+.lesson-main { min-width: 0; }   /* prevent grid blowout */
+
+.lesson-notes-panel {
+  position: sticky;
+  top: calc(64px + 1rem);
+  max-height: calc(100vh - 64px - 2rem);
+  overflow-y: auto;
+}
+.lesson-notes-panel::-webkit-scrollbar { width: 3px; }
+.lesson-notes-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.notes-panel-inner {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+.notes-panel-header {
+  font-size: .875rem;
+  font-weight: 700;
+  color: var(--text);
+  padding-bottom: .5rem;
+  border-bottom: 1px solid var(--border-light);
+  margin: 0;
+}
+.notes-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0;
+}
+
+/* Collapse to single column on tablet / mobile */
+@media (max-width: 1023px) {
+  .lesson-grid { grid-template-columns: 1fr; }
+  .lesson-notes-panel {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+}

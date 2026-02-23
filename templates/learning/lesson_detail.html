@@ -3,6 +3,12 @@
 {% block title %}{{ lesson.title }} — Ochiq kurs{% endblock %}
 
 {% block content %}
+<style>
+@media (min-width: 1024px) {
+  main.content { max-width: 1180px; }
+}
+</style>
+
 <nav class="breadcrumb">
   <a href="{% url 'learning:skill_detail' skill.slug %}">{{ skill.title }}</a>
   &rsaquo;
@@ -12,81 +18,138 @@
 
 <h1>{{ lesson.title }}</h1>
 
-{% if lesson_description_html %}
-  <div class="md-content lesson-desc">{{ lesson_description_html }}</div>
-{% endif %}
-
-<!-- YouTube embed -->
-<div class="video-wrapper">
-  <iframe
-    src="https://www.youtube.com/embed/{{ lesson.youtube_video_id }}"
-    title="{{ lesson.title }}"
-    frameborder="0"
-    referrerpolicy="strict-origin-when-cross-origin"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    allowfullscreen
-    >
-  </iframe>
-</div>
-
-<!-- Mark complete -->
-<div class="complete-section">
-  {% if progress.is_completed %}
-    <p class="completed-badge">&#10003; Completed</p>
-  {% else %}
-    <button
-      id="btn-complete"
-      class="btn-primary"
-      data-url="{% url 'learning:mark_complete' skill.slug subskill.slug lesson.slug %}"
-    >
-      Tugatilgan deb belgilash
-    </button>
-  {% endif %}
-</div>
-
-<!-- Prev / Next navigation -->
-<div class="lesson-nav">
-  {% if prev_lesson %}
-    <a class="btn-secondary" href="{% url 'learning:lesson_detail' skill.slug subskill.slug prev_lesson.slug %}">
-      &larr; {{ prev_lesson.title }}
-    </a>
-  {% else %}
-    <span></span>
-  {% endif %}
-  {% if next_lesson %}
-    <a class="btn-secondary" href="{% url 'learning:lesson_detail' skill.slug subskill.slug next_lesson.slug %}">
-      {{ next_lesson.title }} &rarr;
-    </a>
-  {% endif %}
-</div>
-
-<!-- Personal notes -->
 {% if user.is_authenticated %}
-<section class="notes-section">
-  <h3>Mening konspektim</h3>
+<div class="lesson-grid">
 
-  {% if note_rendered %}
-  <div class="note-preview md-content">
-    {{ note_rendered }}
+  <div class="lesson-main">
+    {% if lesson_description_html %}
+      <div class="md-content lesson-desc">{{ lesson_description_html }}</div>
+    {% endif %}
+
+    <!-- YouTube embed -->
+    <div class="video-wrapper">
+      <iframe
+        src="https://www.youtube.com/embed/{{ lesson.youtube_video_id }}"
+        title="{{ lesson.title }}"
+        frameborder="0"
+        referrerpolicy="strict-origin-when-cross-origin"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen
+        >
+      </iframe>
+    </div>
+
+    <!-- Mark complete -->
+    <div class="complete-section">
+      {% if progress.is_completed %}
+        <p class="completed-badge">&#10003; Completed</p>
+      {% else %}
+        <button
+          id="btn-complete"
+          class="btn-primary"
+          data-url="{% url 'learning:mark_complete' skill.slug subskill.slug lesson.slug %}"
+        >
+          Tugatilgan deb belgilash
+        </button>
+      {% endif %}
+    </div>
+
+    <!-- Prev / Next navigation -->
+    <div class="lesson-nav">
+      {% if prev_lesson %}
+        <a class="btn-secondary" href="{% url 'learning:lesson_detail' skill.slug subskill.slug prev_lesson.slug %}">
+          &larr; {{ prev_lesson.title }}
+        </a>
+      {% else %}
+        <span></span>
+      {% endif %}
+      {% if next_lesson %}
+        <a class="btn-secondary" href="{% url 'learning:lesson_detail' skill.slug subskill.slug next_lesson.slug %}">
+          {{ next_lesson.title }} &rarr;
+        </a>
+      {% endif %}
+    </div>
   </div>
+
+  <aside class="lesson-notes-panel">
+    <div class="notes-panel-inner">
+      <p class="notes-panel-header">Konspekt</p>
+
+      {% if note_rendered %}
+        <div class="note-preview md-content">{{ note_rendered }}</div>
+        <hr class="notes-divider">
+      {% endif %}
+
+      <textarea
+        id="note-content"
+        class="note-textarea"
+        placeholder="Markdown yozing... (```python kodi ```)">{{ note.content|default:'' }}</textarea>
+
+      <div class="note-actions">
+        <button
+          id="btn-save-note"
+          class="btn-primary"
+          data-url="{% url 'learning:save_note' skill.slug subskill.slug lesson.slug %}"
+        >
+          Saqlash
+        </button>
+        <span id="note-status" class="note-status"></span>
+      </div>
+    </div>
+  </aside>
+
+</div>
+{% else %}
+<!-- Unauthenticated: single column, no notes panel -->
+<div class="lesson-main">
+  {% if lesson_description_html %}
+    <div class="md-content lesson-desc">{{ lesson_description_html }}</div>
   {% endif %}
 
-  <textarea
-    id="note-content"
-    class="note-textarea"
-    placeholder="Markdown yozing... (```python kodi ```)">{{ note.content|default:'' }}</textarea>
-
-  <div class="note-actions">
-    <button
-      id="btn-save-note"
-      class="btn-primary"
-      data-url="{% url 'learning:save_note' skill.slug subskill.slug lesson.slug %}"
-    >
-      Saqlash
-    </button>
-    <span id="note-status" class="note-status"></span>
+  <!-- YouTube embed -->
+  <div class="video-wrapper">
+    <iframe
+      src="https://www.youtube.com/embed/{{ lesson.youtube_video_id }}"
+      title="{{ lesson.title }}"
+      frameborder="0"
+      referrerpolicy="strict-origin-when-cross-origin"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen
+      >
+    </iframe>
   </div>
-</section>
+
+  <!-- Mark complete -->
+  <div class="complete-section">
+    {% if progress.is_completed %}
+      <p class="completed-badge">&#10003; Completed</p>
+    {% else %}
+      <button
+        id="btn-complete"
+        class="btn-primary"
+        data-url="{% url 'learning:mark_complete' skill.slug subskill.slug lesson.slug %}"
+      >
+        Tugatilgan deb belgilash
+      </button>
+    {% endif %}
+  </div>
+
+  <!-- Prev / Next navigation -->
+  <div class="lesson-nav">
+    {% if prev_lesson %}
+      <a class="btn-secondary" href="{% url 'learning:lesson_detail' skill.slug subskill.slug prev_lesson.slug %}">
+        &larr; {{ prev_lesson.title }}
+      </a>
+    {% else %}
+      <span></span>
+    {% endif %}
+    {% if next_lesson %}
+      <a class="btn-secondary" href="{% url 'learning:lesson_detail' skill.slug subskill.slug next_lesson.slug %}">
+        {{ next_lesson.title }} &rarr;
+      </a>
+    {% endif %}
+  </div>
+</div>
 {% endif %}
 
 <!-- Syntax highlighting for code blocks in description and notes -->
