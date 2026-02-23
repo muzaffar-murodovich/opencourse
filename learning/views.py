@@ -42,7 +42,6 @@ class SkillDetailView(LoginRequiredMixin, View):
 
     def get(self, request, skill_slug):
         skill = get_object_or_404(Skill, slug=skill_slug)
-        skills = Skill.objects.all()
         subskills = (
             skill.subskills
             .prefetch_related('lessons')
@@ -50,8 +49,12 @@ class SkillDetailView(LoginRequiredMixin, View):
         )
         ctx = {
             'skill': skill,
-            'skills': skills,
             'subskills': subskills,
+            'show_sidebar': True,
+            'sidebar_skill': skill,
+            'sidebar_subskills': subskills,
+            'current_subskill': None,
+            'current_lesson': None,
         }
         return render(request, self.template_name, ctx)
 
@@ -80,13 +83,17 @@ class SubskillDetailView(LoginRequiredMixin, View):
         for lesson in lessons:
             lesson.progress = progress_map.get(lesson.id)
 
-        skills = Skill.objects.all()
+        sidebar_subskills = skill.subskills.prefetch_related('lessons').order_by('order')
 
         ctx = {
-            'skills': skills,
             'skill': skill,
             'subskill': subskill,
             'lessons': lessons,
+            'show_sidebar': True,
+            'sidebar_skill': skill,
+            'sidebar_subskills': sidebar_subskills,
+            'current_subskill': subskill,
+            'current_lesson': None,
         }
         return render(request, self.template_name, ctx)
 
@@ -114,18 +121,20 @@ class LessonDetailView(LoginRequiredMixin, View):
         prev_lesson = sibling_lessons[current_index - 1] if current_index and current_index > 0 else None
         next_lesson = sibling_lessons[current_index + 1] if current_index is not None and current_index < len(sibling_lessons) - 1 else None
 
-        skills = Skill.objects.all()
-        subskills = skill.subskills.order_by('order')
+        sidebar_subskills = skill.subskills.prefetch_related('lessons').order_by('order')
 
         ctx = {
-            'skills': skills,
-            'subskills': subskills,
             'skill': skill,
             'subskill': subskill,
             'lesson': lesson,
             'progress': progress,
             'prev_lesson': prev_lesson,
             'next_lesson': next_lesson,
+            'show_sidebar': True,
+            'sidebar_skill': skill,
+            'sidebar_subskills': sidebar_subskills,
+            'current_subskill': subskill,
+            'current_lesson': lesson,
         }
         return render(request, self.template_name, ctx)
 
