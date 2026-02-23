@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Lesson, LessonProgress, Skill, Subskill
+from .models import Lesson, LessonProgress, Note, Skill, Subskill
 
 
 @admin.register(Skill)
@@ -34,3 +34,11 @@ class LessonProgressAdmin(admin.ModelAdmin):
     list_filter = ['is_completed']
     search_fields = ['user__username', 'lesson__title']
     readonly_fields = ['last_watched_at']
+
+
+@admin.register(Note)
+class NoteAdmin(admin.ModelAdmin):
+    list_display = ['user', 'lesson', 'updated_at']
+    list_filter = ['lesson__subskill__skill']
+    search_fields = ['user__username', 'lesson__title']
+    readonly_fields = ['created_at', 'updated_at']

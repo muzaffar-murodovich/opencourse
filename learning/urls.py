@@ -29,4 +29,9 @@ urlpatterns = [
         views.mark_lesson_complete,
         name='mark_complete',
     ),
+    path(
+        '<slug:skill_slug>/<slug:subskill_slug>/<slug:lesson_slug>/note/',
+        views.save_note,
+        name='save_note',
+    ),
 ]

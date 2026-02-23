@@ -564,7 +564,7 @@ h1 {
 .btn-primary,
 .btn.btn-primary,
 .btn-login {
-  background: ar(--color-primary);
+  background: var(--color-primary);
   color: #fff;
   box-shadow: 0 2px 8px rgba(16,185,129,.28);
 }
@@ -801,3 +801,103 @@ a:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; b
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ── Markdown Rendered Content (.md-content) ────── */
+.md-content { line-height: 1.75; color: var(--text); }
+.md-content h1,
+.md-content h2,
+.md-content h3,
+.md-content h4 { margin: 1.25em 0 .5em; font-weight: 700; letter-spacing: -.01em; }
+.md-content h1 { font-size: 1.5rem; }
+.md-content h2 { font-size: 1.25rem; }
+.md-content h3 { font-size: 1.1rem; }
+.md-content h4 { font-size: 1rem; }
+.md-content p  { margin-bottom: 1em; }
+.md-content ul,
+.md-content ol { margin: .5em 0 1em 1.5em; }
+.md-content li { margin-bottom: .3em; }
+.md-content blockquote {
+  border-left: 3px solid var(--color-accent);
+  margin: 1em 0;
+  padding: .6em 1em;
+  background: var(--color-accent-light);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--muted);
+}
+.md-content code {
+  background: var(--border-light);
+  padding: .15em .4em;
+  border-radius: 4px;
+  font-size: .875em;
+  font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+}
+.md-content pre {
+  margin: 1em 0;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  border: 1px solid var(--border);
+}
+.md-content pre code {
+  background: none;
+  padding: 0;
+  font-size: .875em;
+  border-radius: 0;
+}
+.md-content a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.md-content hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5em 0;
+}
+.lesson-desc { margin-bottom: 1.75rem; }
+
+/* ── Notes Section ──────────────────────────────── */
+.notes-section {
+  margin-top: 2.5rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--border);
+}
+.notes-section > h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--text);
+}
+.note-preview {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+}
+.note-textarea {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  padding: .75rem 1rem;
+  font-size: .9rem;
+  font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--surface);
+  transition: border-color .2s, box-shadow .2s;
+}
+.note-textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(110,231,183,.2);
+}
+.note-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: .75rem;
+}
+.note-status { font-size: .875rem; font-weight: 600; }
+.note-status-ok { color: var(--color-primary); }

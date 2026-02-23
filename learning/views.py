@@ -1,10 +1,14 @@
+import json
+
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.utils.safestring import mark_safe
 from django.views import View
 
-from .models import Lesson, LessonProgress, Skill, Subskill
+from .models import Lesson, LessonProgress, Note, Skill, Subskill
+from .utils import render_markdown
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +127,8 @@ class LessonDetailView(LoginRequiredMixin, View):
 
         sidebar_subskills = skill.subskills.prefetch_related('lessons').order_by('order')
 
+        note = Note.objects.filter(user=request.user, lesson=lesson).first()
+
         ctx = {
             'skill': skill,
             'subskill': subskill,
@@ -135,6 +141,9 @@ class LessonDetailView(LoginRequiredMixin, View):
             'sidebar_subskills': sidebar_subskills,
             'current_subskill': subskill,
             'current_lesson': lesson,
+            'lesson_description_html': mark_safe(render_markdown(lesson.description)),
+            'note': note,
+            'note_rendered': mark_safe(render_markdown(note.content)) if note and note.content else '',
         }
         return render(request, self.template_name, ctx)
 
@@ -163,3 +172,29 @@ def mark_lesson_complete(request, skill_slug, subskill_slug, lesson_slug):
         'is_completed': progress.is_completed,
         'lesson_id': lesson.id,
     })
+
+
+# ---------------------------------------------------------------------------
+# POST /malaka/<skill_slug>/<subskill_slug>/<lesson_slug>/note/
+# ---------------------------------------------------------------------------
+
+@login_required
+def save_note(request, skill_slug, subskill_slug, lesson_slug):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    skill = get_object_or_404(Skill, slug=skill_slug)
+    subskill = get_object_or_404(Subskill, slug=subskill_slug, skill=skill)
+    lesson = get_object_or_404(Lesson, slug=lesson_slug, subskill=subskill)
+
+    try:
+        content = json.loads(request.body).get('content', '')
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    Note.objects.update_or_create(
+        user=request.user,
+        lesson=lesson,
+        defaults={'content': content},
+    )
+    return JsonResponse({'status': 'ok'})

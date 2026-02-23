@@ -12,6 +12,10 @@
 
 <h1>{{ lesson.title }}</h1>
 
+{% if lesson_description_html %}
+  <div class="md-content lesson-desc">{{ lesson_description_html }}</div>
+{% endif %}
+
 <!-- YouTube embed -->
 <div class="video-wrapper">
   <iframe
@@ -24,10 +28,6 @@
     >
   </iframe>
 </div>
-
-{% if lesson.description %}
-  <p class="description">{{ lesson.description }}</p>
-{% endif %}
 
 <!-- Mark complete -->
 <div class="complete-section">
@@ -60,32 +60,104 @@
   {% endif %}
 </div>
 
+<!-- Personal notes -->
+{% if user.is_authenticated %}
+<section class="notes-section">
+  <h3>Mening konspektim</h3>
+
+  {% if note_rendered %}
+  <div class="note-preview md-content">
+    {{ note_rendered }}
+  </div>
+  {% endif %}
+
+  <textarea
+    id="note-content"
+    class="note-textarea"
+    placeholder="Markdown yozing... (```python kodi ```)">{{ note.content|default:'' }}</textarea>
+
+  <div class="note-actions">
+    <button
+      id="btn-save-note"
+      class="btn-primary"
+      data-url="{% url 'learning:save_note' skill.slug subskill.slug lesson.slug %}"
+    >
+      Saqlash
+    </button>
+    <span id="note-status" class="note-status"></span>
+  </div>
+</section>
+{% endif %}
+
+<!-- Syntax highlighting for code blocks in description and notes -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script>
 (function () {
-  var btn = document.getElementById('btn-complete');
-  if (!btn) return;
-
-  btn.addEventListener('click', function () {
-    var url = btn.dataset.url;
-    fetch(url, {
-      method: 'POST',
-      headers: {
-        'X-CSRFToken': '{{ csrf_token }}',
-        'Content-Type': 'application/json',
-      },
-      credentials: 'same-origin',
-    })
-    .then(function (res) { return res.json(); })
-    .then(function (data) {
-      if (data.status === 'ok') {
-        var badge = document.createElement('p');
-        badge.className = 'completed-badge';
-        badge.textContent = '\u2713 Completed';
-        btn.parentNode.replaceChild(badge, btn);
-      }
-    })
-    .catch(function (err) { console.error('Error marking lesson complete:', err); });
+  // Normalize class="python" → class="language-python" for Highlight.js
+  document.querySelectorAll('pre code[class]').forEach(function (el) {
+    var c = el.className;
+    if (!c.startsWith('language-') && !c.startsWith('hljs')) {
+      el.classList.replace(c, 'language-' + c);
+    }
   });
+  hljs.highlightAll();
+}());
+</script>
+
+<script>
+(function () {
+  // Mark lesson complete
+  var btnComplete = document.getElementById('btn-complete');
+  if (btnComplete) {
+    btnComplete.addEventListener('click', function () {
+      fetch(btnComplete.dataset.url, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}',
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+      })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data.status === 'ok') {
+          var badge = document.createElement('p');
+          badge.className = 'completed-badge';
+          badge.textContent = '\u2713 Completed';
+          btnComplete.parentNode.replaceChild(badge, btnComplete);
+        }
+      })
+      .catch(function (err) { console.error('Error marking lesson complete:', err); });
+    });
+  }
+
+  // Save note
+  var btnNote = document.getElementById('btn-save-note');
+  var noteStatus = document.getElementById('note-status');
+  if (btnNote) {
+    btnNote.addEventListener('click', function () {
+      var content = document.getElementById('note-content').value;
+      fetch(btnNote.dataset.url, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}',
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({ content: content }),
+      })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data.status === 'ok') {
+          noteStatus.textContent = '\u2713 Saqlandi';
+          noteStatus.className = 'note-status note-status-ok';
+          setTimeout(function () { noteStatus.textContent = ''; }, 2500);
+        }
+      })
+      .catch(function (err) { console.error('Note save error:', err); });
+    });
+  }
 }());
 </script>
 {% endblock %}

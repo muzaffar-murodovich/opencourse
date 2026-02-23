@@ -7,6 +7,8 @@ name = "pypi"
 django = "*"
 tzdata = "*"
 python-decouple = "*"
+markdown = "*"
+bleach = "*"
 
 [dev-packages]
 
