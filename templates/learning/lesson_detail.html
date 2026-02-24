@@ -5,7 +5,7 @@
 {% block content %}
 <style>
 @media (min-width: 1024px) {
-  main.content { max-width: 1180px; }
+  main.content { max-width: none; }
 }
 </style>
 
@@ -22,23 +22,24 @@
 <div class="lesson-grid">
 
   <div class="lesson-main">
-    {% if lesson_description_html %}
-      <div class="md-content lesson-desc">{{ lesson_description_html }}</div>
-    {% endif %}
-
+    
     <!-- YouTube embed -->
     <div class="video-wrapper">
       <iframe
-        src="https://www.youtube.com/embed/{{ lesson.youtube_video_id }}"
-        title="{{ lesson.title }}"
-        frameborder="0"
-        referrerpolicy="strict-origin-when-cross-origin"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowfullscreen
-        >
-      </iframe>
-    </div>
-
+      src="https://www.youtube.com/embed/{{ lesson.youtube_video_id }}"
+      title="{{ lesson.title }}"
+      frameborder="0"
+      referrerpolicy="strict-origin-when-cross-origin"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen
+      >
+    </iframe>
+  </div>
+  
+  {% if lesson_description_html %}
+    <div class="md-content lesson-desc">{{ lesson_description_html }}</div>
+  {% endif %}
+  
     <!-- Mark complete -->
     <div class="complete-section">
       {% if progress.is_completed %}
@@ -73,27 +74,30 @@
 
   <aside class="lesson-notes-panel">
     <div class="notes-panel-inner">
-      <p class="notes-panel-header">Konspekt</p>
+      <p class="notes-panel-header">Qaydlar</p>
 
-      {% if note_rendered %}
-        <div class="note-preview md-content">{{ note_rendered }}</div>
-        <hr class="notes-divider">
-      {% endif %}
+      <div id="note-preview" class="note-preview md-content{% if not note_rendered %} note-hidden{% endif %}">{{ note_rendered }}</div>
 
-      <textarea
-        id="note-content"
-        class="note-textarea"
-        placeholder="Markdown yozing... (```python kodi ```)">{{ note.content|default:'' }}</textarea>
+      <button id="btn-edit-note" class="btn-secondary btn-sm{% if not note_rendered %} note-hidden{% endif %}">
+        Tahrirlash
+      </button>
 
-      <div class="note-actions">
-        <button
-          id="btn-save-note"
-          class="btn-primary"
-          data-url="{% url 'learning:save_note' skill.slug subskill.slug lesson.slug %}"
-        >
-          Saqlash
-        </button>
-        <span id="note-status" class="note-status"></span>
+      <div id="note-editor" class="note-editor{% if note_rendered %} note-hidden{% endif %}">
+        <textarea
+          id="note-content"
+          class="note-textarea"
+          placeholder="Markdown yozing... (```python kodi ```)">{{ note.content|default:'' }}</textarea>
+
+        <div class="note-actions">
+          <button
+            id="btn-save-note"
+            class="btn-primary"
+            data-url="{% url 'learning:save_note' skill.slug subskill.slug lesson.slug %}"
+          >
+            Saqlash
+          </button>
+          <span id="note-status" class="note-status"></span>
+        </div>
       </div>
     </div>
   </aside>
@@ -195,6 +199,19 @@
     });
   }
 
+  // Note edit/preview toggle
+  var btnEdit = document.getElementById('btn-edit-note');
+  var noteEditor = document.getElementById('note-editor');
+  var notePreview = document.getElementById('note-preview');
+  if (btnEdit) {
+    btnEdit.addEventListener('click', function () {
+      notePreview.classList.add('note-hidden');
+      btnEdit.classList.add('note-hidden');
+      noteEditor.classList.remove('note-hidden');
+      document.getElementById('note-content').focus();
+    });
+  }
+
   // Save note
   var btnNote = document.getElementById('btn-save-note');
   var noteStatus = document.getElementById('note-status');
@@ -215,7 +232,22 @@
         if (data.status === 'ok') {
           noteStatus.textContent = '\u2713 Saqlandi';
           noteStatus.className = 'note-status note-status-ok';
-          setTimeout(function () { noteStatus.textContent = ''; }, 2500);
+          // Update preview with server-rendered markdown
+          if (notePreview && data.rendered !== undefined) {
+            notePreview.innerHTML = data.rendered || '';
+            notePreview.querySelectorAll('pre code').forEach(function (el) {
+              if (typeof hljs !== 'undefined') { hljs.highlightElement(el); }
+            });
+          }
+          // Switch to preview mode after a brief pause so user sees "Saqlandi"
+          setTimeout(function () {
+            noteStatus.textContent = '';
+            if (content.trim() && noteEditor && notePreview) {
+              noteEditor.classList.add('note-hidden');
+              notePreview.classList.remove('note-hidden');
+              if (btnEdit) { btnEdit.classList.remove('note-hidden'); }
+            }
+          }, 800);
         }
       })
       .catch(function (err) { console.error('Note save error:', err); });

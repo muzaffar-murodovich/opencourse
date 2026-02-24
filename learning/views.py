@@ -197,4 +197,5 @@ def save_note(request, skill_slug, subskill_slug, lesson_slug):
         lesson=lesson,
         defaults={'content': content},
     )
-    return JsonResponse({'status': 'ok'})
+    rendered = render_markdown(content)
+    return JsonResponse({'status': 'ok', 'rendered': rendered})

@@ -580,6 +580,7 @@ h1 {
 }
 .btn-secondary:hover,
 .btn.btn-secondary:hover { color: var(--color-primary); border-color: var(--color-accent); background: var(--color-accent-light); opacity: 1; }
+.btn-sm { font-size: .8rem; padding: .35rem .85rem; }
 
 /* ── Forms ──────────────────────────────────────── */
 form label { display: block; margin-bottom: .35rem; font-weight: 600; font-size: .875rem; }
@@ -898,6 +899,7 @@ a:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; b
 }
 .note-status { font-size: .875rem; font-weight: 600; }
 .note-status-ok { color: var(--color-primary); }
+.note-hidden { display: none; }
 
 /* ── Lesson two-column grid ─────────────────────── */
 .lesson-grid {
