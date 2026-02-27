@@ -16,7 +16,8 @@ from django.urls import reverse
 from django.contrib.auth.decorators import user_passes_test
 from django.utils.decorators import method_decorator
 from django.views.generic import CreateView
-from learning.models import Skill, Subskill, Lesson
+from django.db.models import Sum
+from learning.models import Skill, Subskill, Lesson, LessonProgress, VideoSession
 from learning.forms import SkillForm, SubskillForm, LessonForm
 from .forms import UserProfileForm
 
@@ -40,10 +41,20 @@ class ProfileView(LoginRequiredMixin, View):
         user = request.user
         form = UserProfileForm(instance=user)
         is_admin = user.is_staff or user.is_superuser
+        user_seconds = (
+            VideoSession.objects.filter(user=user)
+            .aggregate(Sum('actual_watched_seconds'))['actual_watched_seconds__sum'] or 0
+        )
+        user_hours = round(user_seconds / 3600)
+        user_completed_lessons = LessonProgress.objects.filter(
+            user=user, is_completed=True
+        ).count()
         return render(request, self.template_name, {
             'form': form,
             'is_admin': is_admin,
             'user': user,
+            'user_hours': user_hours,
+            'user_completed_lessons': user_completed_lessons,
         })
 
     def post(self, request):

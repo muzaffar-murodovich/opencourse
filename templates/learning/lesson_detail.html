@@ -23,18 +23,10 @@
 
   <div class="lesson-main">
     
-    <!-- YouTube embed -->
+    <!-- YouTube IFrame API player (tracking enabled for authenticated users) -->
     <div class="video-wrapper">
-      <iframe
-      src="https://www.youtube.com/embed/{{ lesson.youtube_video_id }}"
-      title="{{ lesson.title }}"
-      frameborder="0"
-      referrerpolicy="strict-origin-when-cross-origin"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowfullscreen
-      >
-    </iframe>
-  </div>
+      <div id="yt-player"></div>
+    </div>
   
   {% if lesson_description_html %}
     <div class="md-content lesson-desc">{{ lesson_description_html }}</div>
@@ -253,6 +245,168 @@
       .catch(function (err) { console.error('Note save error:', err); });
     });
   }
+}());
+</script>
+
+<script>
+(function () {
+  var LESSON_ID   = {{ lesson.id }};
+  var VIDEO_ID    = '{{ lesson.youtube_video_id }}';
+  var CSRF        = '{{ csrf_token }}';
+  var URL_START   = '{% url "learning:session_start" skill.slug subskill.slug lesson.slug %}';
+  var URL_EVENT   = '{% url "learning:session_event" skill.slug subskill.slug lesson.slug %}';
+  var URL_BEACON  = '{% url "learning:session_beacon" skill.slug subskill.slug lesson.slug %}';
+  var SESSION_KEY = 'session_' + LESSON_ID;
+
+  var player, sessionId, heartbeatTimer;
+  var pauseTime = null;
+
+  // Warn if YT IFrame API does not fire within 5 seconds
+  var ytReady = false;
+  var ytTimeout = setTimeout(function () {
+    if (!ytReady) { console.warn('YouTube IFrame API did not fire within 5 s'); }
+  }, 5000);
+
+  window.onYouTubeIframeAPIReady = function () {
+    ytReady = true;
+    clearTimeout(ytTimeout);
+    player = new YT.Player('yt-player', {
+      videoId: VIDEO_ID,
+      playerVars: { rel: 0 },
+      events: {
+        onReady: onPlayerReady,
+        onStateChange: onStateChange,
+        onPlaybackRateChange: onRateChange,
+      },
+    });
+  };
+
+  function onPlayerReady(event) {
+    var duration = player.getDuration();
+    sessionId = sessionStorage.getItem(SESSION_KEY);
+    if (sessionId) { return; }
+    fetch(URL_START, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ duration_seconds: Math.round(duration) }),
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      sessionId = d.session_id;
+      sessionStorage.setItem(SESSION_KEY, sessionId);
+      sessionStorage.setItem(SESSION_KEY + '_ts', Date.now());
+    })
+    .catch(function (e) { console.error('session/start error:', e); });
+  }
+
+  function sendEvent(type, position, metadata) {
+    if (!sessionId) { return; }
+    fetch(URL_EVENT, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        session_id: sessionId,
+        event_type: type,
+        position_seconds: Math.round(position),
+        metadata: metadata || {},
+      }),
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.auto_completed) { markCompletedInUI(); }
+    })
+    .catch(function (e) { console.error('session/event error:', e); });
+  }
+
+  function onStateChange(event) {
+    var t = player.getCurrentTime();
+    if (event.data === YT.PlayerState.PLAYING) {
+      // Detect seek: position jumped more than 2 s from where we last paused
+      if (pauseTime !== null && Math.abs(t - pauseTime) > 2) {
+        sendEvent('seek', pauseTime, { seek_to: Math.round(t) });
+      }
+      pauseTime = null;
+      sendEvent('play', t, {});
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = setInterval(function () {
+        if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+          sendEvent('heartbeat', player.getCurrentTime(), {});
+        }
+      }, 10000);
+    } else if (event.data === YT.PlayerState.PAUSED) {
+      pauseTime = t;
+      clearInterval(heartbeatTimer);
+      sendEvent('pause', t, {});
+    } else if (event.data === YT.PlayerState.ENDED) {
+      pauseTime = null;
+      clearInterval(heartbeatTimer);
+      sendEvent('ended', t, {});
+    }
+  }
+
+  function onRateChange(event) {
+    if (!sessionId) { return; }
+    sendEvent('speed_change', player.getCurrentTime(), { playback_rate: event.data });
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') {
+      if (!sessionId) { return; }
+      clearInterval(heartbeatTimer);
+      var pos = player ? Math.round(player.getCurrentTime()) : 0;
+      var payload = JSON.stringify({
+        session_id: sessionId,
+        event_type: 'page_hidden',
+        position_seconds: pos,
+        metadata: {},
+      });
+      navigator.sendBeacon(URL_BEACON, new Blob([payload], { type: 'application/json' }));
+      sessionStorage.setItem(SESSION_KEY + '_ts', Date.now());
+    } else if (document.visibilityState === 'visible') {
+      var ts = parseInt(sessionStorage.getItem(SESSION_KEY + '_ts') || '0', 10);
+      var elapsedMin = (Date.now() - ts) / 60000;
+      if (elapsedMin > 30) {
+        // More than 30 min away — start a fresh session
+        sessionStorage.removeItem(SESSION_KEY);
+        sessionStorage.removeItem(SESSION_KEY + '_ts');
+        sessionId = null;
+        if (player) {
+          var dur = player.getDuration();
+          fetch(URL_START, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ duration_seconds: Math.round(dur) }),
+          })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            sessionId = d.session_id;
+            sessionStorage.setItem(SESSION_KEY, sessionId);
+            sessionStorage.setItem(SESSION_KEY + '_ts', Date.now());
+          })
+          .catch(function (e) { console.error('session/start error:', e); });
+        }
+      }
+      // else: within 30 min — keep sessionId (backend reactivated on page_hidden)
+    }
+  });
+
+  function markCompletedInUI() {
+    var btn = document.getElementById('btn-complete');
+    if (btn) {
+      var badge = document.createElement('p');
+      badge.className = 'completed-badge';
+      badge.textContent = '\u2713 Completed';
+      btn.parentNode.replaceChild(badge, btn);
+    }
+  }
+
+  // Load YouTube IFrame API
+  var tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(tag);
 }());
 </script>
 {% endblock %}

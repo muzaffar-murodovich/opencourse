@@ -34,4 +34,19 @@ urlpatterns = [
         views.save_note,
         name='save_note',
     ),
+    path(
+        '<slug:skill_slug>/<slug:subskill_slug>/<slug:lesson_slug>/session/start/',
+        views.session_start,
+        name='session_start',
+    ),
+    path(
+        '<slug:skill_slug>/<slug:subskill_slug>/<slug:lesson_slug>/session/event/',
+        views.session_event,
+        name='session_event',
+    ),
+    path(
+        '<slug:skill_slug>/<slug:subskill_slug>/<slug:lesson_slug>/session/beacon/',
+        views.session_beacon,
+        name='session_beacon',
+    ),
 ]

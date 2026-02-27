@@ -53,6 +53,7 @@ class Lesson(models.Model):
         on_delete=models.CASCADE,
     )
     youtube_video_id = models.CharField(max_length=20)
+    duration_seconds = models.PositiveIntegerField(null=True, blank=True)
     order = models.PositiveIntegerField(default=0)
 
     class Meta:
@@ -79,6 +80,42 @@ class LessonProgress(models.Model):
     def __str__(self):
         status = "done" if self.is_completed else "in progress"
         return f"{self.user.username} – {self.lesson.title} ({status})"
+
+
+class VideoSession(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='video_sessions')
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='video_sessions')
+    started_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    last_position_seconds = models.PositiveIntegerField(default=0)
+    actual_watched_seconds = models.PositiveIntegerField(default=0)
+    max_reached_seconds = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        indexes = [models.Index(fields=['user', 'lesson', 'ended_at'])]
+
+    def __str__(self):
+        return f"{self.user.username} – {self.lesson.title} (session {self.id})"
+
+
+class VideoEvent(models.Model):
+    EVENT_TYPES = [
+        ('play', 'play'),
+        ('pause', 'pause'),
+        ('seek', 'seek'),
+        ('ended', 'ended'),
+        ('speed_change', 'speed_change'),
+        ('page_hidden', 'page_hidden'),
+        ('heartbeat', 'heartbeat'),
+    ]
+    session = models.ForeignKey(VideoSession, on_delete=models.CASCADE, related_name='events')
+    event_type = models.CharField(max_length=20, choices=EVENT_TYPES)
+    position_seconds = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    def __str__(self):
+        return f"{self.event_type} at {self.position_seconds}s (session {self.session_id})"
 
 
 class Note(models.Model):
