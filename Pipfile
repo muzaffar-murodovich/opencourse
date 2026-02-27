@@ -9,6 +9,7 @@ tzdata = "*"
 python-decouple = "*"
 markdown = "*"
 bleach = "*"
+requests = "*"
 
 [dev-packages]
 

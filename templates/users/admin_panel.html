@@ -14,11 +14,27 @@
     </ul>
     {% endif %}
 
+    <!-- YouTube Playlist Import -->
+    <div class="admin-section" id="playlist-import">
+        <h2>Import from YouTube Playlist</h2>
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+            <input type="text" id="playlist-url-input" placeholder="https://www.youtube.com/playlist?list=PL..." style="flex:1">
+            <button id="playlist-fetch-btn" class="btn btn-secondary">Fetch</button>
+            <span id="playlist-loading" style="display:none;">Loading…</span>
+        </div>
+        <div id="playlist-error" style="color:red;display:none;margin-top:0.5rem;"></div>
+        <div id="playlist-results" style="display:none;margin-top:1rem;">
+            <div id="playlist-items"></div>
+            <button id="playlist-fill-btn" class="btn btn-primary" style="margin-top:0.75rem;" disabled>Add to Subskill</button>
+        </div>
+    </div>
+
     <!-- Tab buttons -->
     <div class="admin-tabs">
         <button class="tab-btn {% if active_tab == 'skill' %}active{% endif %}" data-tab="skill">Skill</button>
         <button class="tab-btn {% if active_tab == 'subskill' %}active{% endif %}" data-tab="subskill">Subskill</button>
         <button class="tab-btn {% if active_tab == 'lesson' %}active{% endif %}" data-tab="lesson">Lesson</button>
+        <button class="tab-btn" data-tab="bulk-create">Bulk Create</button>
     </div>
 
     <!-- Skill form -->
@@ -73,6 +89,33 @@
             {% endfor %}
             <button type="submit" name="add_lesson" class="btn btn-primary">Add Lesson</button>
         </form>
+    </div>
+
+    <!-- Bulk Create tab panel -->
+    <div class="admin-tab-panel" id="tab-bulk-create">
+        <h2>Bulk Create</h2>
+        <div id="bulk-status" style="display:none;padding:0.5rem;border-radius:4px;margin-bottom:1rem;"></div>
+
+        <div class="form-group">
+            <label for="bc-skill-title">Skill Title</label>
+            <input type="text" id="bc-skill-title" placeholder="Skill title">
+        </div>
+        <div class="form-group">
+            <label for="bc-skill-slug">Skill Slug</label>
+            <input type="text" id="bc-skill-slug" placeholder="auto-generated">
+        </div>
+        <div class="form-group">
+            <label for="bc-skill-desc">Skill Description</label>
+            <textarea id="bc-skill-desc" rows="2"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="bc-skill-order">Order</label>
+            <input type="number" id="bc-skill-order" value="0" min="0">
+        </div>
+
+        <div id="bc-subskills-container"></div>
+        <button type="button" id="bc-add-subskill-btn" class="btn btn-secondary">+ Add Subskill</button>
+        <button type="button" id="bc-save-btn" class="btn btn-primary" style="margin-left:1rem;">Save All</button>
     </div>
 
     <!-- Existing content tree -->
@@ -151,6 +194,225 @@
     bindSlug('id_skill-title', 'id_skill-slug');
     bindSlug('id_subskill-title', 'id_subskill-slug');
     bindSlug('id_lesson-title', 'id_lesson-slug');
+
+    // ── Bulk Create ──────────────────────────────────────────────
+    var bcSkillTitle = document.getElementById('bc-skill-title');
+    var bcSkillSlug  = document.getElementById('bc-skill-slug');
+    bcSkillTitle.addEventListener('input', function () {
+        if (!bcSkillSlug.dataset.manual) bcSkillSlug.value = slugify(bcSkillTitle.value);
+    });
+    bcSkillSlug.addEventListener('input', function () {
+        bcSkillSlug.dataset.manual = bcSkillSlug.value ? '1' : '';
+    });
+
+    var subskillCounter = 0;
+
+    function makeLessonBlock(lessonIndex) {
+        var d = document.createElement('div');
+        d.className = 'bc-lesson-block';
+        d.style.marginLeft = '2rem';
+        d.innerHTML =
+            '<div class="form-group"><label>Lesson Title</label>' +
+            '<input type="text" class="bc-l-title" placeholder="Lesson title"></div>' +
+            '<div class="form-group"><label>Lesson Slug</label>' +
+            '<input type="text" class="bc-l-slug" placeholder="auto-generated"></div>' +
+            '<div class="form-group"><label>Description</label>' +
+            '<textarea class="bc-l-desc" rows="2"></textarea></div>' +
+            '<div class="form-group"><label>YouTube Video ID</label>' +
+            '<input type="text" class="bc-l-vid" placeholder="dQw4w9WgXcQ"></div>' +
+            '<div class="form-group"><label>Order</label>' +
+            '<input type="number" class="bc-l-order" value="' + lessonIndex + '" min="0"></div>';
+        var t = d.querySelector('.bc-l-title'), s = d.querySelector('.bc-l-slug');
+        t.addEventListener('input', function () { if (!s.dataset.manual) s.value = slugify(t.value); });
+        s.addEventListener('input', function () { s.dataset.manual = s.value ? '1' : ''; });
+        return d;
+    }
+
+    function makeSubskillBlock(index) {
+        var details = document.createElement('details');
+        details.className = 'bc-subskill-block';
+        details.open = true;
+        details.innerHTML =
+            '<summary>Subskill ' + (index + 1) + '</summary>' +
+            '<div style="margin-left:1rem;">' +
+            '<div class="form-group"><label>Title</label><input type="text" class="bc-ss-title"></div>' +
+            '<div class="form-group"><label>Slug</label><input type="text" class="bc-ss-slug" placeholder="auto-generated"></div>' +
+            '<div class="form-group"><label>Description</label><textarea class="bc-ss-desc" rows="2"></textarea></div>' +
+            '<div class="form-group"><label>Order</label><input type="number" class="bc-ss-order" value="' + index + '" min="0"></div>' +
+            '<div class="bc-lessons-container"></div>' +
+            '<button type="button" class="bc-add-lesson-btn btn btn-secondary">+ Add Lesson</button>' +
+            '</div>';
+        var t = details.querySelector('.bc-ss-title'), s = details.querySelector('.bc-ss-slug');
+        t.addEventListener('input', function () { if (!s.dataset.manual) s.value = slugify(t.value); });
+        s.addEventListener('input', function () { s.dataset.manual = s.value ? '1' : ''; });
+        details.querySelector('.bc-add-lesson-btn').addEventListener('click', function () {
+            var c = details.querySelector('.bc-lessons-container');
+            c.appendChild(makeLessonBlock(c.querySelectorAll('.bc-lesson-block').length));
+        });
+        return details;
+    }
+
+    document.getElementById('bc-add-subskill-btn').addEventListener('click', function () {
+        document.getElementById('bc-subskills-container').appendChild(makeSubskillBlock(subskillCounter++));
+    });
+
+    function getCsrfToken() {
+        var c = document.cookie.split(';');
+        for (var i = 0; i < c.length; i++) {
+            var tok = c[i].trim();
+            if (tok.startsWith('csrftoken=')) return tok.slice(10);
+        }
+        return '';
+    }
+
+    document.getElementById('bc-save-btn').addEventListener('click', function () {
+        var statusEl = document.getElementById('bulk-status');
+        var payload = {
+            title:       bcSkillTitle.value.trim(),
+            slug:        bcSkillSlug.value.trim(),
+            description: document.getElementById('bc-skill-desc').value.trim(),
+            order:       parseInt(document.getElementById('bc-skill-order').value, 10) || 0,
+            subskills:   [],
+        };
+        if (!payload.title) {
+            statusEl.textContent = 'Skill title is required.';
+            statusEl.style.background = '#fee'; statusEl.style.display = 'block'; return;
+        }
+        document.querySelectorAll('#bc-subskills-container .bc-subskill-block').forEach(function (ss) {
+            var ssObj = {
+                title:       ss.querySelector('.bc-ss-title').value.trim(),
+                slug:        ss.querySelector('.bc-ss-slug').value.trim(),
+                description: ss.querySelector('.bc-ss-desc').value.trim(),
+                order:       parseInt(ss.querySelector('.bc-ss-order').value, 10) || 0,
+                lessons:     [],
+            };
+            ss.querySelectorAll('.bc-lesson-block').forEach(function (l) {
+                ssObj.lessons.push({
+                    title:            l.querySelector('.bc-l-title').value.trim(),
+                    slug:             l.querySelector('.bc-l-slug').value.trim(),
+                    description:      l.querySelector('.bc-l-desc').value.trim(),
+                    youtube_video_id: l.querySelector('.bc-l-vid').value.trim(),
+                    order:            parseInt(l.querySelector('.bc-l-order').value, 10) || 0,
+                });
+            });
+            payload.subskills.push(ssObj);
+        });
+        fetch('/users/admin/bulk-create/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+            body: JSON.stringify(payload),
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                statusEl.textContent = 'Created! Skill ID: ' + data.skill_id;
+                statusEl.style.background = '#efe'; statusEl.style.display = 'block';
+                bcSkillTitle.value = ''; bcSkillSlug.value = ''; bcSkillSlug.dataset.manual = '';
+                document.getElementById('bc-skill-desc').value = '';
+                document.getElementById('bc-skill-order').value = '0';
+                document.getElementById('bc-subskills-container').innerHTML = '';
+                subskillCounter = 0;
+            } else {
+                statusEl.textContent = 'Error: ' + data.error;
+                statusEl.style.background = '#fee'; statusEl.style.display = 'block';
+            }
+        })
+        .catch(function (err) {
+            statusEl.textContent = 'Network error: ' + err;
+            statusEl.style.background = '#fee'; statusEl.style.display = 'block';
+        });
+    });
+
+    // ── YouTube Playlist Import ───────────────────────────────────
+    var fetchBtn  = document.getElementById('playlist-fetch-btn');
+    var urlInput  = document.getElementById('playlist-url-input');
+    var loadingEl = document.getElementById('playlist-loading');
+    var errorEl   = document.getElementById('playlist-error');
+    var resultsEl = document.getElementById('playlist-results');
+    var itemsEl   = document.getElementById('playlist-items');
+    var fillBtn   = document.getElementById('playlist-fill-btn');
+
+    function updateFillBtnState() {
+        fillBtn.disabled = !itemsEl.querySelector('.yt-item-check:checked');
+    }
+
+    itemsEl.addEventListener('change', updateFillBtnState);
+
+    fetchBtn.addEventListener('click', function () {
+        var url = urlInput.value.trim();
+        if (!url) return;
+        errorEl.style.display = 'none'; resultsEl.style.display = 'none';
+        loadingEl.style.display = 'inline'; fetchBtn.disabled = true;
+
+        fetch('/users/admin/fetch-playlist/?url=' + encodeURIComponent(url))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            loadingEl.style.display = 'none'; fetchBtn.disabled = false;
+            if (data.error) {
+                errorEl.textContent = data.error; errorEl.style.display = 'block'; return;
+            }
+
+            // Fill Skill Title from playlist name
+            if (data.playlist_title && !bcSkillSlug.dataset.manual) {
+                bcSkillTitle.value = data.playlist_title;
+                bcSkillSlug.value = slugify(data.playlist_title);
+            } else if (data.playlist_title) {
+                bcSkillTitle.value = data.playlist_title;
+            }
+
+            itemsEl.innerHTML = '';
+            data.items.forEach(function (item) {
+                var div = document.createElement('div');
+                div.style.cssText = 'display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;';
+                div.innerHTML =
+                    '<input type="checkbox" class="yt-item-check"' +
+                    ' data-title="' + item.title.replace(/"/g, '&quot;') + '"' +
+                    ' data-video-id="' + item.video_id + '"' +
+                    ' data-description="' + item.description.slice(0, 500).replace(/"/g, '&quot;') + '"' +
+                    ' data-position="' + item.position + '">' +
+                    (item.thumbnail ? '<img src="' + item.thumbnail + '" width="80">' : '') +
+                    '<span>' + (item.position + 1) + '. ' + item.title + '</span>';
+                itemsEl.appendChild(div);
+            });
+            fillBtn.disabled = true;
+            resultsEl.style.display = 'block';
+        })
+        .catch(function (err) {
+            loadingEl.style.display = 'none'; fetchBtn.disabled = false;
+            errorEl.textContent = 'Network error: ' + err; errorEl.style.display = 'block';
+        });
+    });
+
+    fillBtn.addEventListener('click', function () {
+        var checked = itemsEl.querySelectorAll('.yt-item-check:checked');
+        if (!checked.length) return;
+
+        // Switch to Bulk Create tab
+        document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+        document.querySelectorAll('.admin-tab-panel').forEach(function (p) { p.classList.remove('active'); });
+        document.querySelector('[data-tab="bulk-create"]').classList.add('active');
+        document.getElementById('tab-bulk-create').classList.add('active');
+
+        // Always create a new subskill for this batch
+        var container = document.getElementById('bc-subskills-container');
+        var ss = makeSubskillBlock(subskillCounter++);
+        container.appendChild(ss);
+        var lessonsContainer = ss.querySelector('.bc-lessons-container');
+
+        checked.forEach(function (cb) {
+            var lBlock = makeLessonBlock(lessonsContainer.querySelectorAll('.bc-lesson-block').length);
+            lBlock.querySelector('.bc-l-title').value = cb.dataset.title;
+            var slugEl = lBlock.querySelector('.bc-l-slug');
+            slugEl.value = slugify(cb.dataset.title); slugEl.dataset.manual = '1';
+            lBlock.querySelector('.bc-l-vid').value = cb.dataset.videoId;
+            lBlock.querySelector('.bc-l-desc').value = cb.dataset.description;
+            lBlock.querySelector('.bc-l-order').value = cb.dataset.position;
+            lessonsContainer.appendChild(lBlock);
+            cb.checked = false;
+        });
+
+        fillBtn.disabled = true;
+    });
 }());
 </script>
 {% endblock %}
