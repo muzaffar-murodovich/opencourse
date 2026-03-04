@@ -23,10 +23,10 @@ def render_markdown(text: str) -> str:
     """
     if not text:
         return ''
-    html = markdown.markdown(text, extensions=['fenced_code'])
+    html = markdown.markdown(text, extensions=['fenced_code', 'nl2br'])
     return bleach.clean(
         html,
-        tags=_ALLOWED_TAGS,
+        tags=_ALLOWED_TAGS + ['br'],
         attributes=_ALLOWED_ATTRS,
         strip=True,
     )
