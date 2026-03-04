@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load learning_extras %}
 
 {% block title %}{{ course.title }} – Ochiq kurs{% endblock %}
 
@@ -6,6 +7,10 @@
 <h1>{{ course.title }}</h1>
 {% if course.description %}
   <p class="description">{{ course.description }}</p>
+{% endif %}
+
+{% if course_seconds %}
+  <p class="course-watched-time">Ushbu kursdagi videolarni umumiy {{ course_seconds|duration }} ko'rgansiz</p>
 {% endif %}
 
 {% if modules %}

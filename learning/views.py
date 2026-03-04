@@ -1,4 +1,6 @@
 import json
+import pytz
+
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
@@ -11,12 +13,13 @@ from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
+from django.db.models.functions import Greatest
 
 from .models import Lesson, LessonProgress, Note, Course, Module, VideoEvent, VideoSession
 from .utils import render_markdown
 
 User = get_user_model()
-
+UZT = pytz.timezone('Asia/Tashkent')  # UTC+5
 
 # ---------------------------------------------------------------------------
 # / (home page — public)
@@ -70,9 +73,16 @@ class CourseDetailView(LoginRequiredMixin, View):
             .prefetch_related('lessons')
             .order_by('order')
         )
+
+        course_seconds = VideoSession.objects.filter(
+            user=request.user,
+            lesson__module__course=course,
+        ).aggregate(Sum('actual_watched_seconds'))['actual_watched_seconds__sum'] or 0
+
         ctx = {
             'course': course,
             'modules': modules,
+            'course_seconds': course_seconds,
             'show_sidebar': True,
             'sidebar_course': course,
             'sidebar_modules': modules,
@@ -186,12 +196,36 @@ def mark_lesson_complete(request, course_slug, module_slug, lesson_slug):
     progress.is_completed = True
     progress.save()
 
+    _update_streak(request.user)
+
     return JsonResponse({
         'status': 'ok',
         'is_completed': progress.is_completed,
         'lesson_id': lesson.id,
     })
 
+def _update_streak(user):
+    from users.models import UserProfile
+    today = timezone.now().astimezone(UZT).date()
+
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+
+    if profile.last_activity_date == today:
+        return
+
+    if profile.last_activity_date is not None:
+        from datetime import timedelta
+        delta = today - profile.last_activity_date
+        if delta.days == 1:
+            profile.current_streak += 1
+        else:
+            profile.current_streak = 1
+    else:
+        profile.current_streak = 1
+
+    profile.last_activity_date = today
+    profile.longest_streak = max(profile.longest_streak, profile.current_streak)
+    profile.save(update_fields=['current_streak', 'longest_streak', 'last_activity_date'])
 
 # ---------------------------------------------------------------------------
 # POST /malaka/<course_slug>/<module_slug>/<lesson_slug>/note/
@@ -291,7 +325,7 @@ def _handle_session_event(request, lesson, data):
     session.save(update_fields=save_fields)
 
     LessonProgress.objects.filter(user=request.user, lesson=lesson).update(
-        watched_seconds=session.actual_watched_seconds
+        watched_seconds=Greatest('watched_seconds', session.actual_watched_seconds)
     )
 
     auto_completed = _maybe_auto_complete(session, lesson)

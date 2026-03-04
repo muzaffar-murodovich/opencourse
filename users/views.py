@@ -154,19 +154,57 @@ class ProfileView(LoginRequiredMixin, View):
     template_name = 'users/profile.html'
 
     def _base_context(self, request):
+        from datetime import timedelta, date
+        from django.db.models.functions import TruncDate
+        from users.models import UserProfile
+
         user = request.user
+
         user_seconds = (
             VideoSession.objects.filter(user=user)
             .aggregate(Sum('actual_watched_seconds'))['actual_watched_seconds__sum'] or 0
         )
+
+        # Activity graph — oxirgi 365 kun
+        since = date.today() - timedelta(days=364)
+        raw_activity = (
+            VideoSession.objects
+            .filter(user=user, started_at__date__gte=since)
+            .annotate(day=TruncDate('started_at'))
+            .values('day')
+            .annotate(minutes=Sum('actual_watched_seconds'))
+            .values('day', 'minutes')
+        )
+        activity_map = {
+            str(row['day']): row['minutes'] // 60
+            for row in raw_activity
+        }
+
+        today = date.today()
+        # 364 kun oldindan boshlab bugunga qadar
+        days = [today - timedelta(days=i) for i in range(364, -1, -1)]
+
+        # Boshini dushanbaga to'ldirish — None emas, balki alohida flag
+        start_weekday = days[0].weekday()  # 0=Dushanba, 6=Yakshanba
+        padded = [None] * start_weekday + days
+
+        # Haftalar ro'yxatiga bo'lish
+        weeks = [padded[i:i+7] for i in range(0, len(padded), 7)]
+
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+
         return {
             'form': UserProfileForm(instance=user),
             'is_admin': user.is_staff or user.is_superuser,
             'user': user,
-            'user_hours': round(user_seconds / 3600),
+            'user_seconds': user_seconds,
             'user_completed_lessons': LessonProgress.objects.filter(user=user, is_completed=True).count(),
             'has_usable_password': user.has_usable_password(),
             'password_form': PasswordChangeForm(user) if user.has_usable_password() else SetPasswordForm(user),
+            'activity_map': activity_map,
+            'weeks': weeks,
+            'current_streak': profile.current_streak,
+            'longest_streak': profile.longest_streak,
         }
 
     def get(self, request):
