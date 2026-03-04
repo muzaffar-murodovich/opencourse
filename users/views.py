@@ -2,74 +2,204 @@ import json
 import re
 import requests as http_requests
 from django.conf import settings
+from django.contrib.auth import login, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import PasswordChangeForm, SetPasswordForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
+from django.utils import timezone
+from django.utils.decorators import method_decorator
 from django.utils.text import slugify
 from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
-from django.contrib.auth.forms import UserCreationForm
-from django.urls import reverse
 from django.contrib.auth.decorators import user_passes_test
-from django.utils.decorators import method_decorator
-from django.views.generic import CreateView
 from django.db.models import Sum
 from learning.models import Course, Module, Lesson, LessonProgress, VideoSession
 from learning.forms import CourseForm, ModuleForm, LessonForm
 from .forms import UserProfileForm
+from .models import TelegramAuthToken, TelegramProfile
 
-# Auth views are handled by django.contrib.auth.views (LoginView, LogoutView).
+
+def _check_rate_limit(ip, max_requests=60, window=60):
+    """Fixed-window rate limiter using Django cache. Returns True if limit exceeded."""
+    key = f'rl:check:{ip}'
+    cache.add(key, 0, window)
+    count = cache.incr(key)
+    return count > max_requests
 
 
-class SignupView(CreateView):
-    form_class = UserCreationForm
-    template_name = 'users/signup.html'
-    success_url = '/users/login/'
+class TelegramLoginView(View):
+    """Generates a one-time token and shows the Telegram auth page."""
 
-    def form_valid(self, form):
-        messages.success(self.request, 'Account created successfully! Please log in.')
-        return super().form_valid(form)
+    def get(self, request):
+        if request.user.is_authenticated:
+            return redirect('/users/profile/')
+        auth_token = TelegramAuthToken.generate()
+        bot_username = getattr(settings, 'TELEGRAM_BOT_USERNAME', 'ochiqkurs_bot')
+        bot_url = f'https://t.me/{bot_username}?start={auth_token.token}'
+        return render(request, 'registration/login.html', {
+            'bot_url': bot_url,
+            'token': auth_token.token,
+        })
+
+
+# Signup is the same Telegram-based flow as login.
+class SignupView(TelegramLoginView):
+    pass
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class TelegramConfirmView(View):
+    """Called by the Telegram bot after user presses Start."""
+
+    def post(self, request):
+        secret = request.headers.get('X-Bot-Secret', '')
+        if secret != settings.BOT_SECRET:
+            return JsonResponse({'error': 'Forbidden'}, status=403)
+
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+        token_str = data.get('token', '').strip()
+        telegram_id = data.get('telegram_id')
+        first_name = data.get('first_name', '').strip()
+        last_name = data.get('last_name', '').strip()
+        username = data.get('username', '').strip()
+        photo_url = data.get('photo_url', '').strip()
+
+        if not token_str or not telegram_id:
+            return JsonResponse({'error': 'token and telegram_id are required'}, status=400)
+
+        try:
+            auth_token = TelegramAuthToken.objects.get(token=token_str)
+        except TelegramAuthToken.DoesNotExist:
+            return JsonResponse({'error': 'invalid'}, status=400)
+
+        if not auth_token.is_valid():
+            return JsonResponse({'error': 'expired or already confirmed'}, status=400)
+
+        with transaction.atomic():
+            try:
+                profile = TelegramProfile.objects.select_related('user').get(telegram_id=telegram_id)
+                user = profile.user
+            except TelegramProfile.DoesNotExist:
+                chosen_username = (
+                    username
+                    if username and not User.objects.filter(username=username).exists()
+                    else f'tg_{telegram_id}'
+                )
+                user = User.objects.create(
+                    username=chosen_username,
+                    first_name=first_name,
+                    last_name=last_name,
+                )
+                user.set_unusable_password()
+                user.save(update_fields=['username', 'first_name', 'last_name', 'password'])
+                profile = TelegramProfile(user=user, telegram_id=telegram_id)
+                auth_token.is_new_user = True
+
+            profile.first_name = first_name
+            profile.last_name = last_name
+            profile.username = username
+            profile.photo_url = photo_url
+            profile.save()
+
+            if not auth_token.is_new_user:
+                user.first_name = first_name
+                user.last_name = last_name
+                user.save(update_fields=['first_name', 'last_name'])
+
+            auth_token.user = user
+            auth_token.confirmed_at = timezone.now()
+            auth_token.save()
+
+        return JsonResponse({'status': 'ok'})
+
+
+class CheckTokenView(View):
+    """Polled by the browser every 2 seconds to check Telegram confirmation status."""
+
+    def get(self, request, token):
+        ip = (
+            request.META.get('HTTP_X_FORWARDED_FOR', '') or
+            request.META.get('REMOTE_ADDR', '')
+        ).split(',')[0].strip()
+        if _check_rate_limit(ip):
+            return JsonResponse({'status': 'rate_limited'}, status=429)
+
+        try:
+            auth_token = TelegramAuthToken.objects.select_related('user').get(token=token)
+        except TelegramAuthToken.DoesNotExist:
+            return JsonResponse({'status': 'invalid'})
+
+        if auth_token.is_expired():
+            return JsonResponse({'status': 'expired'})
+
+        if auth_token.confirmed_at and auth_token.user:
+            login(request, auth_token.user)
+            redirect_url = '/users/profile/' if auth_token.is_new_user else '/'
+            return JsonResponse({'status': 'confirmed', 'redirect': redirect_url})
+
+        return JsonResponse({'status': 'pending'})
 
 
 class ProfileView(LoginRequiredMixin, View):
     template_name = 'users/profile.html'
 
-    def get(self, request):
+    def _base_context(self, request):
         user = request.user
-        form = UserProfileForm(instance=user)
-        is_admin = user.is_staff or user.is_superuser
         user_seconds = (
             VideoSession.objects.filter(user=user)
             .aggregate(Sum('actual_watched_seconds'))['actual_watched_seconds__sum'] or 0
         )
-        user_hours = round(user_seconds / 3600)
-        user_completed_lessons = LessonProgress.objects.filter(
-            user=user, is_completed=True
-        ).count()
-        return render(request, self.template_name, {
-            'form': form,
-            'is_admin': is_admin,
+        return {
+            'form': UserProfileForm(instance=user),
+            'is_admin': user.is_staff or user.is_superuser,
             'user': user,
-            'user_hours': user_hours,
-            'user_completed_lessons': user_completed_lessons,
-        })
+            'user_hours': round(user_seconds / 3600),
+            'user_completed_lessons': LessonProgress.objects.filter(user=user, is_completed=True).count(),
+            'has_usable_password': user.has_usable_password(),
+            'password_form': PasswordChangeForm(user) if user.has_usable_password() else SetPasswordForm(user),
+        }
+
+    def get(self, request):
+        return render(request, self.template_name, self._base_context(request))
 
     def post(self, request):
         user = request.user
-        form = UserProfileForm(request.POST, instance=user)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Profile updated successfully.')
-            return redirect('users:profile')
-        is_admin = user.is_staff or user.is_superuser
-        return render(request, self.template_name, {
-            'form': form,
-            'is_admin': is_admin,
-            'user': user,
-        })
+
+        if 'update_profile' in request.POST:
+            form = UserProfileForm(request.POST, instance=user)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Profile updated successfully.')
+                return redirect('users:profile')
+            ctx = self._base_context(request)
+            ctx['form'] = form
+            return render(request, self.template_name, ctx)
+
+        if 'change_password' in request.POST:
+            if user.has_usable_password():
+                pw_form = PasswordChangeForm(user, request.POST)
+            else:
+                pw_form = SetPasswordForm(user, request.POST)
+            if pw_form.is_valid():
+                pw_form.save()
+                update_session_auth_hash(request, pw_form.user)
+                messages.success(request, 'Parol muvaffaqiyatli o\'rnatildi.')
+                return redirect('users:profile')
+            ctx = self._base_context(request)
+            ctx['password_form'] = pw_form
+            return render(request, self.template_name, ctx)
+
+        return redirect('users:profile')
 
 
 @method_decorator(user_passes_test(lambda u: u.is_staff or u.is_superuser), name='dispatch')

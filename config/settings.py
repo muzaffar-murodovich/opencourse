@@ -103,3 +103,7 @@ LOGOUT_REDIRECT_URL = '/users/login/'
 
 # --- YouTube API ---
 YOUTUBE_API_KEY = config('YOUTUBE_API_KEY', default='')
+
+# --- Telegram Bot ---
+BOT_SECRET = config('BOT_SECRET')
+TELEGRAM_BOT_USERNAME = config('TELEGRAM_BOT_USERNAME', default='ochiqkurs_bot')

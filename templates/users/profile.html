@@ -4,29 +4,45 @@
 
 {% block content %}
 <div class="profile-container">
-    <h1>Profile</h1>
-    
-    <div class="profile-section">
-        <h2>Edit Your Information</h2>
-        <form method="post">
-            {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit" class="btn btn-primary">Update Profile</button>
-        </form>
-    </div>
-    
-    <div class="profile-section">
-        <h2>Statistika</h2>
-        <p>{{ user_hours }} soat ko'rilgan video</p>
-        <p>{{ user_completed_lessons }} dars tugatilgan</p>
-    </div>
+  <h1>Profile</h1>
 
-    {% if is_admin %}
-    <div class="profile-section">
-        <h2>Admin Panel</h2>
-        <p>As an admin, you can manage the learning content.</p>
-        <a href="{% url 'users:admin_panel' %}" class="btn btn-secondary">Go to Admin Panel</a>
-    </div>
+  <div class="profile-section">
+    <h2>Edit Your Information</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="update_profile" value="1">
+      {{ form.as_p }}
+      <button type="submit" class="btn btn-primary">Update Profile</button>
+    </form>
+  </div>
+
+  <div class="profile-section">
+    <h2>Statistika</h2>
+    <p>{{ user_hours }} soat ko'rilgan video</p>
+    <p>{{ user_completed_lessons }} dars tugatilgan</p>
+  </div>
+
+  <div class="profile-section">
+    <h2>Parol</h2>
+    {% if not has_usable_password %}
+    <p>Parol o'rnatilmagan. Xohlasangiz parol qo'yishingiz mumkin.</p>
     {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="change_password" value="1">
+      {{ password_form.as_p }}
+      <button type="submit" class="btn btn-primary">
+        {% if has_usable_password %}Parolni o'zgartirish{% else %}Parol o'rnatish{% endif %}
+      </button>
+    </form>
+  </div>
+
+  {% if is_admin %}
+  <div class="profile-section">
+    <h2>Admin Panel</h2>
+    <p>As an admin, you can manage the learning content.</p>
+    <a href="{% url 'users:admin_panel' %}" class="btn btn-secondary">Go to Admin Panel</a>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

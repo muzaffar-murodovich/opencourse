@@ -1,20 +1,89 @@
 {% extends "base.html" %}
 
-{% block title %}Login – Ochiq kurs{% endblock %}
+{% block title %}Kirish – Ochiq kurs{% endblock %}
 
 {% block content %}
 <div class="login-box">
-  <h1>Sign in</h1>
-  {% if form.errors %}
-  <div class="form-errors">
-    Invalid username or password. Please try again.
+  <h1>Telegram orqali kirish</h1>
+
+  <a href="{{ bot_url }}" class="btn-primary" id="tg-btn" target="_blank" rel="noopener noreferrer">
+    Telegram orqali tasdiqlash
+  </a>
+
+  <p class="tg-note">
+    Telegram hisobingizga kirmaydi. Faqat shaxsingizni tasdiqlash uchun ishlatiladi.
+  </p>
+
+  <div id="tg-status" style="display:none;">
+    <div class="tg-spinner"></div>
+    <p>Telegram botiga o'ting va <strong>Start</strong> tugmasini bosing…</p>
+    <p id="tg-error" class="form-errors" style="display:none;"></p>
   </div>
-  {% endif %}
-  <form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit" class="btn-primary">Login</button>
-  </form>
-  <p>Don't have an account? <a href="{% url 'users:signup' %}">Sign up</a></p>
 </div>
+
+<style>
+  .tg-note {
+    font-size: 0.85em;
+    color: #666;
+    margin-top: 0.75rem;
+  }
+  .tg-spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid #ccc;
+    border-top-color: #0088cc;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 1rem auto 0.5rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #tg-status { text-align: center; margin-top: 1.5rem; }
+</style>
+
+<script>
+  (function () {
+    var btn = document.getElementById('tg-btn');
+    var statusBox = document.getElementById('tg-status');
+    var errorEl = document.getElementById('tg-error');
+    var token = '{{ token }}';
+    var pollInterval = null;
+
+    btn.addEventListener('click', function () {
+      statusBox.style.display = 'block';
+      btn.style.pointerEvents = 'none';
+      btn.style.opacity = '0.6';
+      startPolling();
+    });
+
+    function startPolling() {
+      pollInterval = setInterval(poll, 2000);
+    }
+
+    function poll() {
+      fetch('/api/auth/check/' + token + '/')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.status === 'confirmed') {
+            clearInterval(pollInterval);
+            window.location.href = data.redirect;
+          } else if (data.status === 'expired') {
+            clearInterval(pollInterval);
+            showError('Havola muddati tugadi. Sahifani yangilang.');
+          } else if (data.status === 'rate_limited') {
+            clearInterval(pollInterval);
+            showError('Juda ko\'p so\'rov. Biroz kuting.');
+          }
+          // 'pending' → keep polling
+        })
+        .catch(function () {
+          // network error — keep trying silently
+        });
+    }
+
+    function showError(msg) {
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+    }
+  })();
+</script>
 {% endblock %}

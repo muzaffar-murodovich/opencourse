@@ -9,8 +9,12 @@ class UserProfileForm(forms.ModelForm):
     """
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'email']
+        fields = ['username', 'first_name', 'last_name']
         widgets = {
+            'username': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Username',
+            }),
             'first_name': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'First name',
@@ -19,8 +23,10 @@ class UserProfileForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Last name',
             }),
-            'email': forms.EmailInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Email address',
-            }),
         }
+
+    def clean_username(self):
+        value = self.cleaned_data['username'].strip()
+        if User.objects.filter(username=value).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError("Bu username band.")
+        return value
