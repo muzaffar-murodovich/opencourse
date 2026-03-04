@@ -22,7 +22,7 @@ class Skill(models.Model):
 
 
 class Subskill(models.Model):
-    title = models.CharField(max_length=255, max_length=120)
+    title = models.CharField(max_length=255)
     slug = models.SlugField()
     description = models.TextField(blank=True)
     skill = models.ForeignKey(
