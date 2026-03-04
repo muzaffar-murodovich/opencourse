@@ -7,7 +7,7 @@ User = get_user_model()
 
 class Skill(models.Model):
     title = models.CharField(max_length=255)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(unique=True, max_length=120)
     description = models.TextField(blank=True)
     order = models.PositiveIntegerField(default=0)
 
@@ -22,7 +22,7 @@ class Skill(models.Model):
 
 
 class Subskill(models.Model):
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=255, max_length=120)
     slug = models.SlugField()
     description = models.TextField(blank=True)
     skill = models.ForeignKey(
@@ -45,7 +45,7 @@ class Subskill(models.Model):
 
 class Lesson(models.Model):
     title = models.CharField(max_length=255)
-    slug = models.SlugField()
+    slug = models.SlugField(max_length=120)
     description = models.TextField(blank=True)
     subskill = models.ForeignKey(
         Subskill,
