@@ -14,7 +14,7 @@
   <header class="navbar">
     <a href="{% url 'home' %}" class="navbar-logo">Ochiq kurs</a>
     <nav class="navbar-links">
-      <a href="{% url 'learning:skill_list' %}" class="navbar-link">Malaka</a>
+      <a href="{% url 'learning:course_list' %}" class="navbar-link">Malaka</a>
       {% if user.is_authenticated %}
         <a href="{% url 'users:profile' %}" class="navbar-link">Profile</a>
         <span class="navbar-user">{{ user.username }}</span>
@@ -36,21 +36,21 @@
     <!-- Sidebar -->
     <nav class="sidebar">
       <div class="sidebar-header">
-        <a href="{% url 'learning:skill_list' %}" class="sidebar-back">← Malakalar</a>
-        <strong class="sidebar-skill-title">{{ sidebar_skill.title }}</strong>
+        <a href="{% url 'learning:course_list' %}" class="sidebar-back">← Malakalar</a>
+        <strong class="sidebar-skill-title">{{ sidebar_course.title }}</strong>
       </div>
       {% if user.is_authenticated %}
       <ul class="subskill-accordion">
-        {% for sub in sidebar_subskills %}
+        {% for sub in sidebar_modules %}
         <li>
-          <details {% if sub == current_subskill %}open{% endif %} class="subskill-dropdown">
-            <summary class="subskill-summary {% if sub == current_subskill %}active{% endif %}">
+          <details {% if sub == current_module %}open{% endif %} class="subskill-dropdown">
+            <summary class="subskill-summary {% if sub == current_module %}active{% endif %}">
               {{ sub.title }}
             </summary>
             <ul class="sidebar-lesson-list">
               {% for lesson in sub.lessons.all %}
               <li class="sidebar-lesson-item {% if lesson == current_lesson %}active{% endif %}">
-                <a href="{% url 'learning:lesson_detail' sidebar_skill.slug sub.slug lesson.slug %}">
+                <a href="{% url 'learning:lesson_detail' sidebar_course.slug sub.slug lesson.slug %}">
                   {{ lesson.title }}
                 </a>
               </li>
@@ -61,7 +61,7 @@
           </details>
         </li>
         {% empty %}
-        <li class="sidebar-empty">No subskills yet.</li>
+        <li class="sidebar-empty">No modules yet.</li>
         {% endfor %}
       </ul>
       {% else %}
@@ -90,7 +90,7 @@
       <p class="footer-copy">{{ now|date:"Y" }} Ochiq kurs</p>
       <!-- <nav class="footer-links">
         <a href="{% url 'home' %}">Home</a>
-        <a href="{% url 'learning:skill_list' %}">Malaka</a>
+        <a href="{% url 'learning:course_list' %}">Malaka</a>
         <a href="{% url 'users:login' %}">Login</a>
       </nav> -->
     </div>

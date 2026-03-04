@@ -17,8 +17,8 @@ from django.contrib.auth.decorators import user_passes_test
 from django.utils.decorators import method_decorator
 from django.views.generic import CreateView
 from django.db.models import Sum
-from learning.models import Skill, Subskill, Lesson, LessonProgress, VideoSession
-from learning.forms import SkillForm, SubskillForm, LessonForm
+from learning.models import Course, Module, Lesson, LessonProgress, VideoSession
+from learning.forms import CourseForm, ModuleForm, LessonForm
 from .forms import UserProfileForm
 
 # Auth views are handled by django.contrib.auth.views (LoginView, LogoutView).
@@ -76,12 +76,12 @@ class ProfileView(LoginRequiredMixin, View):
 class AdminPanelView(LoginRequiredMixin, View):
     template_name = 'users/admin_panel.html'
 
-    def _context(self, skill_form=None, subskill_form=None, lesson_form=None, active_tab='skill'):
+    def _context(self, course_form=None, module_form=None, lesson_form=None, active_tab='course'):
         return {
-            'skill_form': skill_form or SkillForm(prefix='skill'),
-            'subskill_form': subskill_form or SubskillForm(prefix='subskill'),
+            'course_form': course_form or CourseForm(prefix='course'),
+            'module_form': module_form or ModuleForm(prefix='module'),
             'lesson_form': lesson_form or LessonForm(prefix='lesson'),
-            'skills': Skill.objects.prefetch_related('subskills__lessons').all(),
+            'courses': Course.objects.prefetch_related('modules__lessons').all(),
             'active_tab': active_tab,
         }
 
@@ -89,20 +89,20 @@ class AdminPanelView(LoginRequiredMixin, View):
         return render(request, self.template_name, self._context())
 
     def post(self, request):
-        if 'add_skill' in request.POST:
-            form = SkillForm(request.POST, prefix='skill')
+        if 'add_course' in request.POST:
+            form = CourseForm(request.POST, prefix='course')
             if form.is_valid():
                 form.save()
-                messages.success(request, 'Skill added successfully.')
+                messages.success(request, 'Course added successfully.')
                 return redirect('users:admin_panel')
-            return render(request, self.template_name, self._context(skill_form=form, active_tab='skill'))
-        elif 'add_subskill' in request.POST:
-            form = SubskillForm(request.POST, prefix='subskill')
+            return render(request, self.template_name, self._context(course_form=form, active_tab='course'))
+        elif 'add_module' in request.POST:
+            form = ModuleForm(request.POST, prefix='module')
             if form.is_valid():
                 form.save()
-                messages.success(request, 'Subskill added successfully.')
+                messages.success(request, 'Module added successfully.')
                 return redirect('users:admin_panel')
-            return render(request, self.template_name, self._context(subskill_form=form, active_tab='subskill'))
+            return render(request, self.template_name, self._context(module_form=form, active_tab='module'))
         elif 'add_lesson' in request.POST:
             form = LessonForm(request.POST, prefix='lesson')
             if form.is_valid():
@@ -122,32 +122,32 @@ class BulkCreateView(LoginRequiredMixin, View):
         except (json.JSONDecodeError, ValueError):
             return JsonResponse({'success': False, 'error': 'Invalid JSON body.'}, status=400)
 
-        skill_title = data.get('title', '').strip()
-        if not skill_title:
-            return JsonResponse({'success': False, 'error': 'Skill title is required.'}, status=400)
+        course_title = data.get('title', '').strip()
+        if not course_title:
+            return JsonResponse({'success': False, 'error': 'Course title is required.'}, status=400)
 
-        skill_slug = data.get('slug', '').strip() or slugify(skill_title)
+        course_slug = data.get('slug', '').strip() or slugify(course_title)
 
         try:
             with transaction.atomic():
-                skill = Skill.objects.create(
-                    title=skill_title,
-                    slug=skill_slug,
+                course = Course.objects.create(
+                    title=course_title,
+                    slug=course_slug,
                     description=data.get('description', '').strip(),
                     order=int(data.get('order', 0)),
                 )
-                for ss_data in data.get('subskills', []):
-                    ss_title = ss_data.get('title', '').strip()
-                    if not ss_title:
-                        raise ValueError('Subskill title is required.')
-                    subskill = Subskill.objects.create(
-                        title=ss_title,
-                        slug=ss_data.get('slug', '').strip() or slugify(ss_title),
-                        description=ss_data.get('description', '').strip(),
-                        skill=skill,
-                        order=int(ss_data.get('order', 0)),
+                for m_data in data.get('modules', []):
+                    m_title = m_data.get('title', '').strip()
+                    if not m_title:
+                        raise ValueError('Module title is required.')
+                    module = Module.objects.create(
+                        title=m_title,
+                        slug=m_data.get('slug', '').strip() or slugify(m_title),
+                        description=m_data.get('description', '').strip(),
+                        course=course,
+                        order=int(m_data.get('order', 0)),
                     )
-                    for l_data in ss_data.get('lessons', []):
+                    for l_data in m_data.get('lessons', []):
                         l_title = l_data.get('title', '').strip()
                         if not l_title:
                             raise ValueError('Lesson title is required.')
@@ -155,7 +155,7 @@ class BulkCreateView(LoginRequiredMixin, View):
                             title=l_title,
                             slug=l_data.get('slug', '').strip() or slugify(l_title),
                             description=l_data.get('description', '').strip(),
-                            subskill=subskill,
+                            module=module,
                             youtube_video_id=l_data.get('youtube_video_id', '').strip(),
                             order=int(l_data.get('order', 0)),
                         )
@@ -164,7 +164,7 @@ class BulkCreateView(LoginRequiredMixin, View):
         except Exception as exc:
             return JsonResponse({'success': False, 'error': f'Database error: {exc}'}, status=500)
 
-        return JsonResponse({'success': True, 'skill_id': skill.pk})
+        return JsonResponse({'success': True, 'course_id': course.pk})
 
 
 @method_decorator(user_passes_test(lambda u: u.is_staff or u.is_superuser), name='dispatch')

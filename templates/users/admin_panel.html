@@ -25,24 +25,24 @@
         <div id="playlist-error" style="color:red;display:none;margin-top:0.5rem;"></div>
         <div id="playlist-results" style="display:none;margin-top:1rem;">
             <div id="playlist-items"></div>
-            <button id="playlist-fill-btn" class="btn btn-primary" style="margin-top:0.75rem;" disabled>Add to Subskill</button>
+            <button id="playlist-fill-btn" class="btn btn-primary" style="margin-top:0.75rem;" disabled>Add to Module</button>
         </div>
     </div>
 
     <!-- Tab buttons -->
     <div class="admin-tabs">
-        <button class="tab-btn {% if active_tab == 'skill' %}active{% endif %}" data-tab="skill">Skill</button>
-        <button class="tab-btn {% if active_tab == 'subskill' %}active{% endif %}" data-tab="subskill">Subskill</button>
+        <button class="tab-btn {% if active_tab == 'course' %}active{% endif %}" data-tab="course">Course</button>
+        <button class="tab-btn {% if active_tab == 'module' %}active{% endif %}" data-tab="module">Module</button>
         <button class="tab-btn {% if active_tab == 'lesson' %}active{% endif %}" data-tab="lesson">Lesson</button>
         <button class="tab-btn" data-tab="bulk-create">Bulk Create</button>
     </div>
 
-    <!-- Skill form -->
-    <div class="admin-tab-panel {% if active_tab == 'skill' %}active{% endif %}" id="tab-skill">
-        <h2>Add Skill</h2>
+    <!-- Course form -->
+    <div class="admin-tab-panel {% if active_tab == 'course' %}active{% endif %}" id="tab-course">
+        <h2>Add Course</h2>
         <form method="post" class="admin-form">
             {% csrf_token %}
-            {% for field in skill_form %}
+            {% for field in course_form %}
             <div class="form-group">
                 <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                 {{ field }}
@@ -51,16 +51,16 @@
                 {% endif %}
             </div>
             {% endfor %}
-            <button type="submit" name="add_skill" class="btn btn-primary">Add Skill</button>
+            <button type="submit" name="add_course" class="btn btn-primary">Add Course</button>
         </form>
     </div>
 
-    <!-- Subskill form -->
-    <div class="admin-tab-panel {% if active_tab == 'subskill' %}active{% endif %}" id="tab-subskill">
-        <h2>Add Subskill</h2>
+    <!-- Module form -->
+    <div class="admin-tab-panel {% if active_tab == 'module' %}active{% endif %}" id="tab-module">
+        <h2>Add Module</h2>
         <form method="post" class="admin-form">
             {% csrf_token %}
-            {% for field in subskill_form %}
+            {% for field in module_form %}
             <div class="form-group">
                 <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                 {{ field }}
@@ -69,7 +69,7 @@
                 {% endif %}
             </div>
             {% endfor %}
-            <button type="submit" name="add_subskill" class="btn btn-primary">Add Subskill</button>
+            <button type="submit" name="add_module" class="btn btn-primary">Add Module</button>
         </form>
     </div>
 
@@ -97,47 +97,47 @@
         <div id="bulk-status" style="display:none;padding:0.5rem;border-radius:4px;margin-bottom:1rem;"></div>
 
         <div class="form-group">
-            <label for="bc-skill-title">Skill Title</label>
-            <input type="text" id="bc-skill-title" placeholder="Skill title">
+            <label for="bc-course-title">Course Title</label>
+            <input type="text" id="bc-course-title" placeholder="Course title">
         </div>
         <div class="form-group">
-            <label for="bc-skill-slug">Skill Slug</label>
-            <input type="text" id="bc-skill-slug" placeholder="auto-generated">
+            <label for="bc-course-slug">Course Slug</label>
+            <input type="text" id="bc-course-slug" placeholder="auto-generated">
         </div>
         <div class="form-group">
-            <label for="bc-skill-desc">Skill Description</label>
-            <textarea id="bc-skill-desc" rows="2"></textarea>
+            <label for="bc-course-desc">Course Description</label>
+            <textarea id="bc-course-desc" rows="2"></textarea>
         </div>
         <div class="form-group">
-            <label for="bc-skill-order">Order</label>
-            <input type="number" id="bc-skill-order" value="0" min="0">
+            <label for="bc-course-order">Order</label>
+            <input type="number" id="bc-course-order" value="0" min="0">
         </div>
 
-        <div id="bc-subskills-container"></div>
-        <button type="button" id="bc-add-subskill-btn" class="btn btn-secondary">+ Add Subskill</button>
+        <div id="bc-modules-container"></div>
+        <button type="button" id="bc-add-module-btn" class="btn btn-secondary">+ Add Module</button>
         <button type="button" id="bc-save-btn" class="btn btn-primary" style="margin-left:1rem;">Save All</button>
     </div>
 
     <!-- Existing content tree -->
     <div class="admin-section admin-content-tree">
         <h2>Existing Content</h2>
-        {% if skills %}
-        {% for skill in skills %}
+        {% if courses %}
+        {% for course in courses %}
         <details>
             <summary>
-                <strong>{{ skill.title }}</strong>
-                <span class="slug-hint">{{ skill.slug }}</span>
-                <span class="count">({{ skill.subskills.count }} subskill{{ skill.subskills.count|pluralize }})</span>
+                <strong>{{ course.title }}</strong>
+                <span class="slug-hint">{{ course.slug }}</span>
+                <span class="count">({{ course.modules.count }} module{{ course.modules.count|pluralize }})</span>
             </summary>
-            {% for subskill in skill.subskills.all %}
+            {% for module in course.modules.all %}
             <details class="nested">
                 <summary>
-                    {{ subskill.title }}
-                    <span class="slug-hint">{{ subskill.slug }}</span>
-                    <span class="count">({{ subskill.lessons.count }} lesson{{ subskill.lessons.count|pluralize }})</span>
+                    {{ module.title }}
+                    <span class="slug-hint">{{ module.slug }}</span>
+                    <span class="count">({{ module.lessons.count }} lesson{{ module.lessons.count|pluralize }})</span>
                 </summary>
                 <ul class="lesson-list">
-                    {% for lesson in subskill.lessons.all %}
+                    {% for lesson in module.lessons.all %}
                     <li>{{ lesson.order }}. {{ lesson.title }} <span class="slug-hint">{{ lesson.slug }}</span></li>
                     {% empty %}
                     <li><em>No lessons yet.</em></li>
@@ -145,7 +145,7 @@
                 </ul>
             </details>
             {% empty %}
-            <p class="empty-note">No subskills yet.</p>
+            <p class="empty-note">No modules yet.</p>
             {% endfor %}
         </details>
         {% endfor %}
@@ -191,21 +191,21 @@
         });
     }
 
-    bindSlug('id_skill-title', 'id_skill-slug');
-    bindSlug('id_subskill-title', 'id_subskill-slug');
+    bindSlug('id_course-title', 'id_course-slug');
+    bindSlug('id_module-title', 'id_module-slug');
     bindSlug('id_lesson-title', 'id_lesson-slug');
 
     // ── Bulk Create ──────────────────────────────────────────────
-    var bcSkillTitle = document.getElementById('bc-skill-title');
-    var bcSkillSlug  = document.getElementById('bc-skill-slug');
-    bcSkillTitle.addEventListener('input', function () {
-        if (!bcSkillSlug.dataset.manual) bcSkillSlug.value = slugify(bcSkillTitle.value);
+    var bcCourseTitle = document.getElementById('bc-course-title');
+    var bcCourseSlug  = document.getElementById('bc-course-slug');
+    bcCourseTitle.addEventListener('input', function () {
+        if (!bcCourseSlug.dataset.manual) bcCourseSlug.value = slugify(bcCourseTitle.value);
     });
-    bcSkillSlug.addEventListener('input', function () {
-        bcSkillSlug.dataset.manual = bcSkillSlug.value ? '1' : '';
+    bcCourseSlug.addEventListener('input', function () {
+        bcCourseSlug.dataset.manual = bcCourseSlug.value ? '1' : '';
     });
 
-    var subskillCounter = 0;
+    var moduleCounter = 0;
 
     function makeLessonBlock(lessonIndex) {
         var d = document.createElement('div');
@@ -228,21 +228,21 @@
         return d;
     }
 
-    function makeSubskillBlock(index) {
+    function makeModuleBlock(index) {
         var details = document.createElement('details');
-        details.className = 'bc-subskill-block';
+        details.className = 'bc-module-block';
         details.open = true;
         details.innerHTML =
-            '<summary>Subskill ' + (index + 1) + '</summary>' +
+            '<summary>Module ' + (index + 1) + '</summary>' +
             '<div style="margin-left:1rem;">' +
-            '<div class="form-group"><label>Title</label><input type="text" class="bc-ss-title"></div>' +
-            '<div class="form-group"><label>Slug</label><input type="text" class="bc-ss-slug" placeholder="auto-generated"></div>' +
-            '<div class="form-group"><label>Description</label><textarea class="bc-ss-desc" rows="2"></textarea></div>' +
-            '<div class="form-group"><label>Order</label><input type="number" class="bc-ss-order" value="' + index + '" min="0"></div>' +
+            '<div class="form-group"><label>Title</label><input type="text" class="bc-m-title"></div>' +
+            '<div class="form-group"><label>Slug</label><input type="text" class="bc-m-slug" placeholder="auto-generated"></div>' +
+            '<div class="form-group"><label>Description</label><textarea class="bc-m-desc" rows="2"></textarea></div>' +
+            '<div class="form-group"><label>Order</label><input type="number" class="bc-m-order" value="' + index + '" min="0"></div>' +
             '<div class="bc-lessons-container"></div>' +
             '<button type="button" class="bc-add-lesson-btn btn btn-secondary">+ Add Lesson</button>' +
             '</div>';
-        var t = details.querySelector('.bc-ss-title'), s = details.querySelector('.bc-ss-slug');
+        var t = details.querySelector('.bc-m-title'), s = details.querySelector('.bc-m-slug');
         t.addEventListener('input', function () { if (!s.dataset.manual) s.value = slugify(t.value); });
         s.addEventListener('input', function () { s.dataset.manual = s.value ? '1' : ''; });
         details.querySelector('.bc-add-lesson-btn').addEventListener('click', function () {
@@ -252,8 +252,8 @@
         return details;
     }
 
-    document.getElementById('bc-add-subskill-btn').addEventListener('click', function () {
-        document.getElementById('bc-subskills-container').appendChild(makeSubskillBlock(subskillCounter++));
+    document.getElementById('bc-add-module-btn').addEventListener('click', function () {
+        document.getElementById('bc-modules-container').appendChild(makeModuleBlock(moduleCounter++));
     });
 
     function getCsrfToken() {
@@ -268,26 +268,26 @@
     document.getElementById('bc-save-btn').addEventListener('click', function () {
         var statusEl = document.getElementById('bulk-status');
         var payload = {
-            title:       bcSkillTitle.value.trim(),
-            slug:        bcSkillSlug.value.trim(),
-            description: document.getElementById('bc-skill-desc').value.trim(),
-            order:       parseInt(document.getElementById('bc-skill-order').value, 10) || 0,
-            subskills:   [],
+            title:       bcCourseTitle.value.trim(),
+            slug:        bcCourseSlug.value.trim(),
+            description: document.getElementById('bc-course-desc').value.trim(),
+            order:       parseInt(document.getElementById('bc-course-order').value, 10) || 0,
+            modules:     [],
         };
         if (!payload.title) {
-            statusEl.textContent = 'Skill title is required.';
+            statusEl.textContent = 'Course title is required.';
             statusEl.style.background = '#fee'; statusEl.style.display = 'block'; return;
         }
-        document.querySelectorAll('#bc-subskills-container .bc-subskill-block').forEach(function (ss) {
-            var ssObj = {
-                title:       ss.querySelector('.bc-ss-title').value.trim(),
-                slug:        ss.querySelector('.bc-ss-slug').value.trim(),
-                description: ss.querySelector('.bc-ss-desc').value.trim(),
-                order:       parseInt(ss.querySelector('.bc-ss-order').value, 10) || 0,
+        document.querySelectorAll('#bc-modules-container .bc-module-block').forEach(function (m) {
+            var mObj = {
+                title:       m.querySelector('.bc-m-title').value.trim(),
+                slug:        m.querySelector('.bc-m-slug').value.trim(),
+                description: m.querySelector('.bc-m-desc').value.trim(),
+                order:       parseInt(m.querySelector('.bc-m-order').value, 10) || 0,
                 lessons:     [],
             };
-            ss.querySelectorAll('.bc-lesson-block').forEach(function (l) {
-                ssObj.lessons.push({
+            m.querySelectorAll('.bc-lesson-block').forEach(function (l) {
+                mObj.lessons.push({
                     title:            l.querySelector('.bc-l-title').value.trim(),
                     slug:             l.querySelector('.bc-l-slug').value.trim(),
                     description:      l.querySelector('.bc-l-desc').value.trim(),
@@ -295,7 +295,7 @@
                     order:            parseInt(l.querySelector('.bc-l-order').value, 10) || 0,
                 });
             });
-            payload.subskills.push(ssObj);
+            payload.modules.push(mObj);
         });
         fetch('/users/admin/bulk-create/', {
             method: 'POST',
@@ -305,13 +305,13 @@
         .then(function (r) { return r.json(); })
         .then(function (data) {
             if (data.success) {
-                statusEl.textContent = 'Created! Skill ID: ' + data.skill_id;
+                statusEl.textContent = 'Created! Course ID: ' + data.course_id;
                 statusEl.style.background = '#efe'; statusEl.style.display = 'block';
-                bcSkillTitle.value = ''; bcSkillSlug.value = ''; bcSkillSlug.dataset.manual = '';
-                document.getElementById('bc-skill-desc').value = '';
-                document.getElementById('bc-skill-order').value = '0';
-                document.getElementById('bc-subskills-container').innerHTML = '';
-                subskillCounter = 0;
+                bcCourseTitle.value = ''; bcCourseSlug.value = ''; bcCourseSlug.dataset.manual = '';
+                document.getElementById('bc-course-desc').value = '';
+                document.getElementById('bc-course-order').value = '0';
+                document.getElementById('bc-modules-container').innerHTML = '';
+                moduleCounter = 0;
             } else {
                 statusEl.textContent = 'Error: ' + data.error;
                 statusEl.style.background = '#fee'; statusEl.style.display = 'block';
@@ -352,12 +352,12 @@
                 errorEl.textContent = data.error; errorEl.style.display = 'block'; return;
             }
 
-            // Fill Skill Title from playlist name
-            if (data.playlist_title && !bcSkillSlug.dataset.manual) {
-                bcSkillTitle.value = data.playlist_title;
-                bcSkillSlug.value = slugify(data.playlist_title);
+            // Fill Course Title from playlist name
+            if (data.playlist_title && !bcCourseSlug.dataset.manual) {
+                bcCourseTitle.value = data.playlist_title;
+                bcCourseSlug.value = slugify(data.playlist_title);
             } else if (data.playlist_title) {
-                bcSkillTitle.value = data.playlist_title;
+                bcCourseTitle.value = data.playlist_title;
             }
 
             itemsEl.innerHTML = '';
@@ -393,11 +393,11 @@
         document.querySelector('[data-tab="bulk-create"]').classList.add('active');
         document.getElementById('tab-bulk-create').classList.add('active');
 
-        // Always create a new subskill for this batch
-        var container = document.getElementById('bc-subskills-container');
-        var ss = makeSubskillBlock(subskillCounter++);
-        container.appendChild(ss);
-        var lessonsContainer = ss.querySelector('.bc-lessons-container');
+        // Always create a new module for this batch
+        var container = document.getElementById('bc-modules-container');
+        var m = makeModuleBlock(moduleCounter++);
+        container.appendChild(m);
+        var lessonsContainer = m.querySelector('.bc-lessons-container');
 
         checked.forEach(function (cb) {
             var lBlock = makeLessonBlock(lessonsContainer.querySelectorAll('.bc-lesson-block').length);

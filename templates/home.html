@@ -7,7 +7,7 @@
     <div class="hero-inner">
       <h1 class="hero-title">Ochiq kurs bilan yangi malakalarga ega bo'ling</h1>
       <p class="hero-subtitle"></p>
-      <a href="{% url 'learning:skill_list' %}" class="hero-cta">Malakalarga o'tish &rarr;</a>
+      <a href="{% url 'learning:course_list' %}" class="hero-cta">Malakalarga o'tish &rarr;</a>
       <p class="hero-stats">
         {{ total_hours }} soat
         <span class="hero-stats-sep">|</span>
@@ -18,15 +18,15 @@
     </div>
   </section>
 
-  {% if skills %}
+  {% if courses %}
   <section class="home-skills">
     <h2 class="home-section-title">Mavjud Malakalar</h2>
     <div class="home-card-grid">
-      {% for skill in skills %}
-      <a class="home-card" href="{% url 'learning:skill_detail' skill.slug %}">
-        <h3>{{ skill.title }}</h3>
-        {% if skill.description %}
-          <p>{{ skill.description }}</p>
+      {% for course in courses %}
+      <a class="home-card" href="{% url 'learning:course_detail' course.slug %}">
+        <h3>{{ course.title }}</h3>
+        {% if course.description %}
+          <p>{{ course.description }}</p>
         {% endif %}
       </a>
       {% endfor %}

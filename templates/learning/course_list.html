@@ -6,16 +6,16 @@
 <h1>Malakalar</h1>
 <p class="description">O'rganmoqchi bo'lgan mavzuni tanlang.</p>
 
-{% if skills %}
+{% if courses %}
   <div class="card-grid">
-    {% for skill in skills %}
-    <a class="card" href="{% url 'learning:skill_detail' skill.slug %}">
-      <h2>{{ skill.title }}</h2>
-      {% if skill.description %}
-        <p>{{ skill.description }}</p>
+    {% for course in courses %}
+    <a class="card" href="{% url 'learning:course_detail' course.slug %}">
+      <h2>{{ course.title }}</h2>
+      {% if course.description %}
+        <p>{{ course.description }}</p>
       {% endif %}
       <span class="card-lesson-count">
-        {{ skill.subskills.count }} bo'lim
+        {{ course.modules.count }} bo'lim
       </span>
     </a>
     {% endfor %}

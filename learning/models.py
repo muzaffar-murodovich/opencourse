@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
-class Skill(models.Model):
+class Course(models.Model):
     title = models.CharField(max_length=255)
     slug = models.SlugField(unique=True, max_length=120)
     description = models.TextField(blank=True)
@@ -21,34 +21,34 @@ class Skill(models.Model):
         return self.title
 
 
-class Subskill(models.Model):
+class Module(models.Model):
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=120)
     description = models.TextField(blank=True)
-    skill = models.ForeignKey(
-        Skill,
-        related_name='subskills',
+    course = models.ForeignKey(
+        Course,
+        related_name='modules',
         on_delete=models.CASCADE,
     )
     order = models.PositiveIntegerField(default=0)
 
     class Meta:
         ordering = ['order']
-        unique_together = [('skill', 'slug')]
+        unique_together = [('course', 'slug')]
         indexes = [
-            models.Index(fields=['skill', 'order']),
+            models.Index(fields=['course', 'order']),
         ]
 
     def __str__(self):
-        return f"{self.skill.title} > {self.title}"
+        return f"{self.course.title} > {self.title}"
 
 
 class Lesson(models.Model):
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=120)
     description = models.TextField(blank=True)
-    subskill = models.ForeignKey(
-        Subskill,
+    module = models.ForeignKey(
+        Module,
         related_name='lessons',
         on_delete=models.CASCADE,
     )
@@ -58,13 +58,13 @@ class Lesson(models.Model):
 
     class Meta:
         ordering = ['order']
-        unique_together = [('subskill', 'slug')]
+        unique_together = [('module', 'slug')]
         indexes = [
-            models.Index(fields=['subskill', 'order']),
+            models.Index(fields=['module', 'order']),
         ]
 
     def __str__(self):
-        return f"{self.subskill.title} – {self.title}"
+        return f"{self.module.title} – {self.title}"
 
 
 class LessonProgress(models.Model):

@@ -1,23 +1,23 @@
 {% extends "base.html" %}
 
-{% block title %}{{ subskill.title }} – Ochiq kurs{% endblock %}
+{% block title %}{{ module.title }} – Ochiq kurs{% endblock %}
 
 {% block content %}
 <nav class="breadcrumb">
-  <a href="{% url 'learning:skill_detail' skill.slug %}">{{ skill.title }}</a>
-  &rsaquo; {{ subskill.title }}
+  <a href="{% url 'learning:course_detail' course.slug %}">{{ course.title }}</a>
+  &rsaquo; {{ module.title }}
 </nav>
 
-<h1>{{ subskill.title }}</h1>
-{% if subskill.description %}
-  <p class="description">{{ subskill.description }}</p>
+<h1>{{ module.title }}</h1>
+{% if module.description %}
+  <p class="description">{{ module.description }}</p>
 {% endif %}
 
 {% if lessons %}
 <ul class="lesson-list">
   {% for lesson in lessons %}
   <li class="lesson-item {% if lesson.progress and lesson.progress.is_completed %}completed{% endif %}">
-    <a href="{% url 'learning:lesson_detail' skill.slug subskill.slug lesson.slug %}">
+    <a href="{% url 'learning:lesson_detail' course.slug module.slug lesson.slug %}">
       {% if lesson.progress and lesson.progress.is_completed %}
         <span class="check">&#10003;</span>
       {% else %}

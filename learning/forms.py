@@ -1,11 +1,11 @@
 from django import forms
 from django.utils.text import slugify
-from .models import Skill, Subskill, Lesson
+from .models import Course, Module, Lesson
 
 
-class SkillForm(forms.ModelForm):
+class CourseForm(forms.ModelForm):
     class Meta:
-        model = Skill
+        model = Course
         fields = ['title', 'slug', 'description', 'order']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3}),
@@ -22,10 +22,10 @@ class SkillForm(forms.ModelForm):
         return cleaned_data
 
 
-class SubskillForm(forms.ModelForm):
+class ModuleForm(forms.ModelForm):
     class Meta:
-        model = Subskill
-        fields = ['title', 'slug', 'description', 'skill', 'order']
+        model = Module
+        fields = ['title', 'slug', 'description', 'course', 'order']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3}),
         }
@@ -44,7 +44,7 @@ class SubskillForm(forms.ModelForm):
 class LessonForm(forms.ModelForm):
     class Meta:
         model = Lesson
-        fields = ['title', 'slug', 'description', 'subskill', 'youtube_video_id', 'order']
+        fields = ['title', 'slug', 'description', 'module', 'youtube_video_id', 'order']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3}),
         }

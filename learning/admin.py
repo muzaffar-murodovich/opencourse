@@ -1,31 +1,31 @@
 from django.contrib import admin
-from .models import Lesson, LessonProgress, Note, Skill, Subskill
+from .models import Lesson, LessonProgress, Note, Course, Module
 
 
-@admin.register(Skill)
-class SkillAdmin(admin.ModelAdmin):
+@admin.register(Course)
+class CourseAdmin(admin.ModelAdmin):
     list_display = ['title', 'order']
     search_fields = ['title']
     prepopulated_fields = {'slug': ('title',)}
     ordering = ['order']
 
 
-@admin.register(Subskill)
-class SubskillAdmin(admin.ModelAdmin):
-    list_display = ['title', 'skill', 'order']
-    list_filter = ['skill']
+@admin.register(Module)
+class ModuleAdmin(admin.ModelAdmin):
+    list_display = ['title', 'course', 'order']
+    list_filter = ['course']
     search_fields = ['title']
     prepopulated_fields = {'slug': ('title',)}
-    ordering = ['skill', 'order']
+    ordering = ['course', 'order']
 
 
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
-    list_display = ['title', 'subskill', 'order']
-    list_filter = ['subskill']
+    list_display = ['title', 'module', 'order']
+    list_filter = ['module']
     search_fields = ['title']
     prepopulated_fields = {'slug': ('title',)}
-    ordering = ['subskill', 'order']
+    ordering = ['module', 'order']
 
 
 @admin.register(LessonProgress)
@@ -39,6 +39,6 @@ class LessonProgressAdmin(admin.ModelAdmin):
 @admin.register(Note)
 class NoteAdmin(admin.ModelAdmin):
     list_display = ['user', 'lesson', 'updated_at']
-    list_filter = ['lesson__subskill__skill']
+    list_filter = ['lesson__module__course']
     search_fields = ['user__username', 'lesson__title']
     readonly_fields = ['created_at', 'updated_at']

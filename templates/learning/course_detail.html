@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}{{ course.title }} – Ochiq kurs{% endblock %}
+
+{% block content %}
+<h1>{{ course.title }}</h1>
+{% if course.description %}
+  <p class="description">{{ course.description }}</p>
+{% endif %}
+
+{% if modules %}
+  <div class="card-grid">
+    {% for module in modules %}
+    <a class="card" href="{% url 'learning:module_detail' course.slug module.slug %}">
+      <h2>{{ module.title }}</h2>
+      {% if module.description %}
+        <p>{{ module.description }}</p>
+      {% endif %}
+      <span class="card-lesson-count">{{ module.lessons.count }} lesson{{ module.lessons.count|pluralize }}</span>
+    </a>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="empty-message">No sub-topics yet. Check back soon.</p>
+{% endif %}
+{% endblock %}

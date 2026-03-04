@@ -12,7 +12,7 @@ from django.utils.safestring import mark_safe
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import Lesson, LessonProgress, Note, Skill, Subskill, VideoEvent, VideoSession
+from .models import Lesson, LessonProgress, Note, Course, Module, VideoEvent, VideoSession
 from .utils import render_markdown
 
 User = get_user_model()
@@ -26,7 +26,7 @@ class HomeView(View):
     template_name = 'home.html'
 
     def get(self, request):
-        skills = Skill.objects.all()
+        courses = Course.objects.all()
         total_seconds = (
             VideoSession.objects.aggregate(Sum('actual_watched_seconds'))
             ['actual_watched_seconds__sum'] or 0
@@ -35,7 +35,7 @@ class HomeView(View):
         total_users = User.objects.filter(is_active=True).count()
         total_lessons = Lesson.objects.count()
         return render(request, self.template_name, {
-            'skills': skills,
+            'courses': courses,
             'total_hours': total_hours,
             'total_users': total_users,
             'total_lessons': total_lessons,
@@ -43,57 +43,57 @@ class HomeView(View):
 
 
 # ---------------------------------------------------------------------------
-# /malaka/ (all skills — public)
+# /malaka/ (all courses — public)
 # ---------------------------------------------------------------------------
 
-class SkillListView(View):
-    template_name = 'learning/skill_list.html'
+class CourseListView(View):
+    template_name = 'learning/course_list.html'
 
     def get(self, request):
-        skills = Skill.objects.all()
+        courses = Course.objects.all()
         return render(request, self.template_name, {
-            'skills': skills,
+            'courses': courses,
         })
 
 
 # ---------------------------------------------------------------------------
-# /malaka/<skill_slug>/
+# /malaka/<course_slug>/
 # ---------------------------------------------------------------------------
 
-class SkillDetailView(LoginRequiredMixin, View):
-    template_name = 'learning/skill_detail.html'
+class CourseDetailView(LoginRequiredMixin, View):
+    template_name = 'learning/course_detail.html'
 
-    def get(self, request, skill_slug):
-        skill = get_object_or_404(Skill, slug=skill_slug)
-        subskills = (
-            skill.subskills
+    def get(self, request, course_slug):
+        course = get_object_or_404(Course, slug=course_slug)
+        modules = (
+            course.modules
             .prefetch_related('lessons')
             .order_by('order')
         )
         ctx = {
-            'skill': skill,
-            'subskills': subskills,
+            'course': course,
+            'modules': modules,
             'show_sidebar': True,
-            'sidebar_skill': skill,
-            'sidebar_subskills': subskills,
-            'current_subskill': None,
+            'sidebar_course': course,
+            'sidebar_modules': modules,
+            'current_module': None,
             'current_lesson': None,
         }
         return render(request, self.template_name, ctx)
 
 
 # ---------------------------------------------------------------------------
-# /malaka/<skill_slug>/<subskill_slug>/
+# /malaka/<course_slug>/<module_slug>/
 # ---------------------------------------------------------------------------
 
-class SubskillDetailView(LoginRequiredMixin, View):
-    template_name = 'learning/subskill_detail.html'
+class ModuleDetailView(LoginRequiredMixin, View):
+    template_name = 'learning/module_detail.html'
 
-    def get(self, request, skill_slug, subskill_slug):
-        skill = get_object_or_404(Skill, slug=skill_slug)
-        subskill = get_object_or_404(Subskill, slug=subskill_slug, skill=skill)
+    def get(self, request, course_slug, module_slug):
+        course = get_object_or_404(Course, slug=course_slug)
+        module = get_object_or_404(Module, slug=module_slug, course=course)
 
-        lessons = list(subskill.lessons.order_by('order'))
+        lessons = list(module.lessons.order_by('order'))
         lesson_ids = [lesson.id for lesson in lessons]
 
         progress_map = {
@@ -106,59 +106,59 @@ class SubskillDetailView(LoginRequiredMixin, View):
         for lesson in lessons:
             lesson.progress = progress_map.get(lesson.id)
 
-        sidebar_subskills = skill.subskills.prefetch_related('lessons').order_by('order')
+        sidebar_modules = course.modules.prefetch_related('lessons').order_by('order')
 
         ctx = {
-            'skill': skill,
-            'subskill': subskill,
+            'course': course,
+            'module': module,
             'lessons': lessons,
             'show_sidebar': True,
-            'sidebar_skill': skill,
-            'sidebar_subskills': sidebar_subskills,
-            'current_subskill': subskill,
+            'sidebar_course': course,
+            'sidebar_modules': sidebar_modules,
+            'current_module': module,
             'current_lesson': None,
         }
         return render(request, self.template_name, ctx)
 
 
 # ---------------------------------------------------------------------------
-# /malaka/<skill_slug>/<subskill_slug>/<lesson_slug>/
+# /malaka/<course_slug>/<module_slug>/<lesson_slug>/
 # ---------------------------------------------------------------------------
 
 class LessonDetailView(LoginRequiredMixin, View):
     template_name = 'learning/lesson_detail.html'
 
-    def get(self, request, skill_slug, subskill_slug, lesson_slug):
-        skill = get_object_or_404(Skill, slug=skill_slug)
-        subskill = get_object_or_404(Subskill, slug=subskill_slug, skill=skill)
-        lesson = get_object_or_404(Lesson, slug=lesson_slug, subskill=subskill)
+    def get(self, request, course_slug, module_slug, lesson_slug):
+        course = get_object_or_404(Course, slug=course_slug)
+        module = get_object_or_404(Module, slug=module_slug, course=course)
+        lesson = get_object_or_404(Lesson, slug=lesson_slug, module=module)
 
         progress, _ = LessonProgress.objects.get_or_create(
             user=request.user, lesson=lesson
         )
 
-        sibling_lessons = list(subskill.lessons.order_by('order'))
+        sibling_lessons = list(module.lessons.order_by('order'))
         current_index = next(
             (i for i, l in enumerate(sibling_lessons) if l.id == lesson.id), None
         )
         prev_lesson = sibling_lessons[current_index - 1] if current_index and current_index > 0 else None
         next_lesson = sibling_lessons[current_index + 1] if current_index is not None and current_index < len(sibling_lessons) - 1 else None
 
-        sidebar_subskills = skill.subskills.prefetch_related('lessons').order_by('order')
+        sidebar_modules = course.modules.prefetch_related('lessons').order_by('order')
 
         note = Note.objects.filter(user=request.user, lesson=lesson).first()
 
         ctx = {
-            'skill': skill,
-            'subskill': subskill,
+            'course': course,
+            'module': module,
             'lesson': lesson,
             'progress': progress,
             'prev_lesson': prev_lesson,
             'next_lesson': next_lesson,
             'show_sidebar': True,
-            'sidebar_skill': skill,
-            'sidebar_subskills': sidebar_subskills,
-            'current_subskill': subskill,
+            'sidebar_course': course,
+            'sidebar_modules': sidebar_modules,
+            'current_module': module,
             'current_lesson': lesson,
             'lesson_description_html': mark_safe(render_markdown(lesson.description)),
             'note': note,
@@ -168,17 +168,17 @@ class LessonDetailView(LoginRequiredMixin, View):
 
 
 # ---------------------------------------------------------------------------
-# POST /malaka/<skill_slug>/<subskill_slug>/<lesson_slug>/complete/
+# POST /malaka/<course_slug>/<module_slug>/<lesson_slug>/complete/
 # ---------------------------------------------------------------------------
 
 @login_required
-def mark_lesson_complete(request, skill_slug, subskill_slug, lesson_slug):
+def mark_lesson_complete(request, course_slug, module_slug, lesson_slug):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
-    skill = get_object_or_404(Skill, slug=skill_slug)
-    subskill = get_object_or_404(Subskill, slug=subskill_slug, skill=skill)
-    lesson = get_object_or_404(Lesson, slug=lesson_slug, subskill=subskill)
+    course = get_object_or_404(Course, slug=course_slug)
+    module = get_object_or_404(Module, slug=module_slug, course=course)
+    lesson = get_object_or_404(Lesson, slug=lesson_slug, module=module)
 
     progress, _ = LessonProgress.objects.get_or_create(
         user=request.user, lesson=lesson
@@ -194,17 +194,17 @@ def mark_lesson_complete(request, skill_slug, subskill_slug, lesson_slug):
 
 
 # ---------------------------------------------------------------------------
-# POST /malaka/<skill_slug>/<subskill_slug>/<lesson_slug>/note/
+# POST /malaka/<course_slug>/<module_slug>/<lesson_slug>/note/
 # ---------------------------------------------------------------------------
 
 @login_required
-def save_note(request, skill_slug, subskill_slug, lesson_slug):
+def save_note(request, course_slug, module_slug, lesson_slug):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
-    skill = get_object_or_404(Skill, slug=skill_slug)
-    subskill = get_object_or_404(Subskill, slug=subskill_slug, skill=skill)
-    lesson = get_object_or_404(Lesson, slug=lesson_slug, subskill=subskill)
+    course = get_object_or_404(Course, slug=course_slug)
+    module = get_object_or_404(Module, slug=module_slug, course=course)
+    lesson = get_object_or_404(Lesson, slug=lesson_slug, module=module)
 
     try:
         content = json.loads(request.body).get('content', '')
@@ -224,10 +224,10 @@ def save_note(request, skill_slug, subskill_slug, lesson_slug):
 # Session tracking helpers
 # ---------------------------------------------------------------------------
 
-def _get_lesson(skill_slug, subskill_slug, lesson_slug):
-    skill = get_object_or_404(Skill, slug=skill_slug)
-    subskill = get_object_or_404(Subskill, slug=subskill_slug, skill=skill)
-    return get_object_or_404(Lesson, slug=lesson_slug, subskill=subskill)
+def _get_lesson(course_slug, module_slug, lesson_slug):
+    course = get_object_or_404(Course, slug=course_slug)
+    module = get_object_or_404(Module, slug=module_slug, course=course)
+    return get_object_or_404(Lesson, slug=lesson_slug, module=module)
 
 
 def _recalculate_watched(session):
@@ -299,15 +299,15 @@ def _handle_session_event(request, lesson, data):
 
 
 # ---------------------------------------------------------------------------
-# POST /malaka/<skill_slug>/<subskill_slug>/<lesson_slug>/session/start/
+# POST /malaka/<course_slug>/<module_slug>/<lesson_slug>/session/start/
 # ---------------------------------------------------------------------------
 
 @login_required
-def session_start(request, skill_slug, subskill_slug, lesson_slug):
+def session_start(request, course_slug, module_slug, lesson_slug):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
-    lesson = _get_lesson(skill_slug, subskill_slug, lesson_slug)
+    lesson = _get_lesson(course_slug, module_slug, lesson_slug)
 
     try:
         data = json.loads(request.body) if request.body else {}
@@ -340,15 +340,15 @@ def session_start(request, skill_slug, subskill_slug, lesson_slug):
 
 
 # ---------------------------------------------------------------------------
-# POST /malaka/<skill_slug>/<subskill_slug>/<lesson_slug>/session/event/
+# POST /malaka/<course_slug>/<module_slug>/<lesson_slug>/session/event/
 # ---------------------------------------------------------------------------
 
 @login_required
-def session_event(request, skill_slug, subskill_slug, lesson_slug):
+def session_event(request, course_slug, module_slug, lesson_slug):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
-    lesson = _get_lesson(skill_slug, subskill_slug, lesson_slug)
+    lesson = _get_lesson(course_slug, module_slug, lesson_slug)
 
     try:
         data = json.loads(request.body)
@@ -359,18 +359,18 @@ def session_event(request, skill_slug, subskill_slug, lesson_slug):
 
 
 # ---------------------------------------------------------------------------
-# POST /malaka/<skill_slug>/<subskill_slug>/<lesson_slug>/session/beacon/
+# POST /malaka/<course_slug>/<module_slug>/<lesson_slug>/session/beacon/
 # ---------------------------------------------------------------------------
 
 @csrf_exempt
-def session_beacon(request, skill_slug, subskill_slug, lesson_slug):
+def session_beacon(request, course_slug, module_slug, lesson_slug):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'Unauthorized'}, status=401)
 
-    lesson = _get_lesson(skill_slug, subskill_slug, lesson_slug)
+    lesson = _get_lesson(course_slug, module_slug, lesson_slug)
 
     try:
         data = json.loads(request.body)
