@@ -156,6 +156,7 @@
 </div>
 
 
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
 <script>
 (function () {
     // Tab switching
@@ -210,8 +211,8 @@
     function makeLessonBlock(lessonIndex) {
         var d = document.createElement('div');
         d.className = 'bc-lesson-block';
-        d.style.marginLeft = '2rem';
         d.innerHTML =
+            '<div class="bc-drag-handle" title="Drag to reorder">⠿</div>' +
             '<div class="form-group"><label>Lesson Title</label>' +
             '<input type="text" class="bc-l-title" placeholder="Lesson title"></div>' +
             '<div class="form-group"><label>Lesson Slug</label>' +
@@ -221,10 +222,20 @@
             '<div class="form-group"><label>YouTube Video ID</label>' +
             '<input type="text" class="bc-l-vid" placeholder="dQw4w9WgXcQ"></div>' +
             '<div class="form-group"><label>Order</label>' +
-            '<input type="number" class="bc-l-order" value="' + lessonIndex + '" min="0"></div>';
+            '<input type="number" class="bc-l-order" value="' + lessonIndex + '" min="0"></div>' +
+            '<button type="button" class="bc-remove-lesson-btn btn btn-sm btn-danger">× Remove</button>';
         var t = d.querySelector('.bc-l-title'), s = d.querySelector('.bc-l-slug');
         t.addEventListener('input', function () { if (!s.dataset.manual) s.value = slugify(t.value); });
         s.addEventListener('input', function () { s.dataset.manual = s.value ? '1' : ''; });
+        d.querySelector('.bc-remove-lesson-btn').addEventListener('click', function () {
+            var parent = d.parentNode;
+            d.remove();
+            if (parent) {
+                parent.querySelectorAll('.bc-lesson-block').forEach(function (block, i) {
+                    block.querySelector('.bc-l-order').value = i;
+                });
+            }
+        });
         return d;
     }
 
@@ -233,7 +244,7 @@
         details.className = 'bc-module-block';
         details.open = true;
         details.innerHTML =
-            '<summary>Module ' + (index + 1) + '</summary>' +
+            '<summary>Module ' + (index + 1) + ' <button type="button" class="bc-remove-module-btn btn btn-sm btn-danger" style="margin-left:0.5rem;font-size:.75rem;">× Remove</button></summary>' +
             '<div style="margin-left:1rem;">' +
             '<div class="form-group"><label>Title</label><input type="text" class="bc-m-title"></div>' +
             '<div class="form-group"><label>Slug</label><input type="text" class="bc-m-slug" placeholder="auto-generated"></div>' +
@@ -249,11 +260,51 @@
             var c = details.querySelector('.bc-lessons-container');
             c.appendChild(makeLessonBlock(c.querySelectorAll('.bc-lesson-block').length));
         });
+        details.querySelector('.bc-remove-module-btn').addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var container = details.parentNode;
+            details.remove();
+            if (container) {
+                container.querySelectorAll('.bc-module-block').forEach(function (m, i) {
+                    m.querySelector('summary').childNodes[0].textContent = 'Module ' + (i + 1) + ' ';
+                    m.querySelector('.bc-m-order').value = i;
+                });
+            }
+        });
+        var lessonsContainer = details.querySelector('.bc-lessons-container');
+        new Sortable(lessonsContainer, {
+            group: 'lessons',
+            animation: 150,
+            handle: '.bc-drag-handle',
+            ghostClass: 'bc-ghost',
+            chosenClass: 'bc-chosen',
+            onEnd: function () {
+                document.querySelectorAll('.bc-lessons-container').forEach(function (c) {
+                    c.querySelectorAll('.bc-lesson-block').forEach(function (block, i) {
+                        block.querySelector('.bc-l-order').value = i;
+                    });
+                });
+            }
+        });
         return details;
     }
 
     document.getElementById('bc-add-module-btn').addEventListener('click', function () {
         document.getElementById('bc-modules-container').appendChild(makeModuleBlock(moduleCounter++));
+    });
+
+    new Sortable(document.getElementById('bc-modules-container'), {
+        animation: 150,
+        handle: 'summary',
+        ghostClass: 'bc-ghost',
+        chosenClass: 'bc-chosen',
+        onEnd: function () {
+            document.querySelectorAll('#bc-modules-container .bc-module-block').forEach(function (m, i) {
+                m.querySelector('summary').childNodes[0].textContent = 'Module ' + (i + 1) + ' ';
+                m.querySelector('.bc-m-order').value = i;
+            });
+        }
     });
 
     function getCsrfToken() {

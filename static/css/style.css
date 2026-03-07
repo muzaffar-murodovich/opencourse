@@ -582,6 +582,67 @@ h1 {
 .btn.btn-secondary:hover { color: var(--color-primary); border-color: var(--color-accent); background: var(--color-accent-light); opacity: 1; }
 .btn-sm { font-size: .8rem; padding: .35rem .85rem; }
 
+/* ── Bulk Create UX ─────────────────────────────── */
+.btn-danger,
+.btn.btn-danger {
+  background: #FEF2F2;
+  color: #DC2626;
+  border: 1.5px solid #FECACA;
+}
+.btn-danger:hover,
+.btn.btn-danger:hover {
+  background: #DC2626;
+  color: #fff;
+  border-color: #DC2626;
+  opacity: 1;
+}
+
+.bc-drag-handle {
+  cursor: grab;
+  user-select: none;
+  font-size: 1.25rem;
+  color: var(--muted);
+  padding: 0.25rem 0.5rem;
+  line-height: 1;
+  display: inline-block;
+  border-radius: var(--radius-sm);
+  transition: color .15s, background .15s;
+}
+.bc-drag-handle:hover {
+  color: var(--color-primary);
+  background: var(--color-accent-light);
+}
+.bc-drag-handle:active { cursor: grabbing; }
+
+.bc-ghost {
+  opacity: 0.4;
+  background: var(--color-accent-light) !important;
+  border: 2px dashed var(--color-accent) !important;
+  border-radius: var(--radius-sm);
+}
+
+.bc-chosen {
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.25);
+}
+
+.bc-lesson-block {
+  position: relative;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  margin-left: 2rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  transition: border-color .15s, box-shadow .15s;
+}
+.bc-lesson-block:hover {
+  border-color: var(--color-accent);
+}
+
+.bc-module-block {
+  margin-bottom: 0.75rem;
+}
+
 /* ── Forms ──────────────────────────────────────── */
 form label { display: block; margin-bottom: .35rem; font-weight: 600; font-size: .875rem; }
 
