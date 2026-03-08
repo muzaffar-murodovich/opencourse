@@ -129,6 +129,24 @@
   padding: 1.5rem 2rem;
   margin-bottom: 1.5rem;
 }
+
+/* Streak banner — mobil fix */
+@media (max-width: 640px) {
+  .streak-banner {
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1.25rem 1rem;
+    justify-content: center;
+  }
+  .streak-divider {
+    display: none;
+  }
+  .streak-item {
+    flex: 0 0 calc(50% - .5rem);
+    justify-content: flex-start;
+  }
+}
+
 .streak-item {
   display: flex;
   align-items: center;
@@ -199,6 +217,17 @@
   margin-bottom: 1.25rem;
   padding-bottom: .75rem;
   border-bottom: 1px solid var(--border-light);
+}
+
+@media (max-width: 640px) {
+  .profile-section {
+    padding: 1.25rem 1rem;
+  }
+  .activity-graph {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 </style>
 
