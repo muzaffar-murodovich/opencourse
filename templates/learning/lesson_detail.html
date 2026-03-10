@@ -18,138 +18,92 @@
 
 <h1>{{ lesson.title }}</h1>
 
-{% if user.is_authenticated %}
-<div class="lesson-grid">
+  <div class="lesson-grid">
 
-  <div class="lesson-main">
+    <div class="lesson-main">
+      
+      <!-- YouTube IFrame API player (tracking enabled for authenticated users) -->
+      <div class="video-wrapper">
+        <div id="yt-player"></div>
+      </div>
     
-    <!-- YouTube IFrame API player (tracking enabled for authenticated users) -->
-    <div class="video-wrapper">
-      <div id="yt-player"></div>
-    </div>
-  
-  {% if lesson_description_html %}
-    <div class="md-content lesson-desc">{{ lesson_description_html }}</div>
-  {% endif %}
-  
-    <!-- Mark complete -->
-    <div class="complete-section">
-      {% if progress.is_completed %}
-        <p class="completed-badge">&#10003; Completed</p>
-      {% else %}
-        <button
-          id="btn-complete"
-          class="btn-primary"
-          data-url="{% url 'learning:mark_complete' course.slug module.slug lesson.slug %}"
-        >
-          Tugatilgan deb belgilash
-        </button>
-      {% endif %}
-    </div>
-
-    <!-- Prev / Next navigation -->
-    <div class="lesson-nav">
-      {% if prev_lesson %}
-        <a class="btn-secondary" href="{% url 'learning:lesson_detail' course.slug module.slug prev_lesson.slug %}">
-          &larr; {{ prev_lesson.title }}
-        </a>
-      {% else %}
-        <span></span>
-      {% endif %}
-      {% if next_lesson %}
-        <a class="btn-secondary" href="{% url 'learning:lesson_detail' course.slug module.slug next_lesson.slug %}">
-          {{ next_lesson.title }} &rarr;
-        </a>
-      {% endif %}
-    </div>
-  </div>
-
-  <aside class="lesson-notes-panel">
-    <div class="notes-panel-inner">
-      <p class="notes-panel-header">Qaydlar</p>
-
-      <div id="note-preview" class="note-preview md-content{% if not note_rendered %} note-hidden{% endif %}">{{ note_rendered }}</div>
-
-      <button id="btn-edit-note" class="btn-secondary btn-sm{% if not note_rendered %} note-hidden{% endif %}">
-        Tahrirlash
-      </button>
-
-      <div id="note-editor" class="note-editor{% if note_rendered %} note-hidden{% endif %}">
-        <textarea
-          id="note-content"
-          class="note-textarea"
-          placeholder="Markdown yozing... (```python kodi ```)">{{ note.content|default:'' }}</textarea>
-
-        <div class="note-actions">
-          <button
-            id="btn-save-note"
-            class="btn-primary"
-            data-url="{% url 'learning:save_note' course.slug module.slug lesson.slug %}"
-          >
-            Saqlash
-          </button>
-          <span id="note-status" class="note-status"></span>
+    {% if lesson_description_html %}
+      <div class="md-content lesson-desc">{{ lesson_description_html }}</div>
+    {% endif %}
+    
+      <!-- Mark complete -->
+      {% if user.is_authenticated %}
+        <div class="complete-section">
+          {% if progress.is_completed %}
+            <p class="completed-badge">&#10003; Completed</p>
+          {% else %}
+            <button
+              id="btn-complete"
+              class="btn-primary"
+              data-url="{% url 'learning:mark_complete' course.slug module.slug lesson.slug %}"
+            >
+              Tugatilgan deb belgilash
+            </button>
+          {% endif %}
         </div>
+      {% endif %}
+      <!-- Prev / Next navigation -->
+      <div class="lesson-nav">
+        {% if prev_lesson %}
+          <a class="btn-secondary" href="{% url 'learning:lesson_detail' course.slug module.slug prev_lesson.slug %}">
+            &larr; {{ prev_lesson.title }}
+          </a>
+        {% else %}
+          <span></span>
+        {% endif %}
+        {% if next_lesson %}
+          <a class="btn-secondary" href="{% url 'learning:lesson_detail' course.slug module.slug next_lesson.slug %}">
+            {{ next_lesson.title }} &rarr;
+          </a>
+        {% endif %}
       </div>
     </div>
-  </aside>
 
-</div>
-{% else %}
-<!-- Unauthenticated: single column, no notes panel -->
-<div class="lesson-main">
-  
-  <!-- YouTube embed -->
-  <div class="video-wrapper">
-    <iframe
-    src="https://www.youtube.com/embed/{{ lesson.youtube_video_id }}"
-    title="{{ lesson.title }}"
-    frameborder="0"
-    referrerpolicy="strict-origin-when-cross-origin"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    allowfullscreen
-    >
-    </iframe>
+    <aside class="lesson-notes-panel">
+      <div class="notes-panel-inner">
+        <p class="notes-panel-header">Qaydlar</p>
+         {% if user.is_authenticated %}
+
+            <div id="note-preview" class="note-preview md-content{% if not note_rendered %} note-hidden{% endif %}">{{ note_rendered }}</div>
+
+            <button id="btn-edit-note" class="btn-secondary btn-sm{% if not note_rendered %} note-hidden{% endif %}">
+              Tahrirlash
+            </button>
+
+            <div id="note-editor" class="note-editor{% if note_rendered %} note-hidden{% endif %}">
+              <textarea
+                id="note-content"
+                class="note-textarea"
+                placeholder="Markdown yozing... (```python kodi ```)">{{ note.content|default:'' }}</textarea>
+
+              <div class="note-actions">
+                <button
+                  id="btn-save-note"
+                  class="btn-primary"
+                  data-url="{% url 'learning:save_note' course.slug module.slug lesson.slug %}"
+                >
+                  Saqlash
+                </button>
+                <span id="note-status" class="note-status"></span>
+              </div>
+            </div>
+          {% else %}
+            <div id="note-editor" class="note-editor{% if note_rendered %} note-hidden{% endif %}">
+              <div
+                id="note-content"
+                class="note-textarea">Qayd yozish uchun <a href="{% url 'users:login' %}">saytga kiring</a></div>
+
+            </div>
+          {% endif %}
+      </div>
+    </aside>
+
   </div>
-
-  {% if lesson_description_html %}
-    <div class="md-content lesson-desc">{{ lesson_description_html }}</div>
-  {% endif %}
-
-  <!-- Mark complete -->
-{% if user.is_authenticated %}
-  <div class="complete-section">
-    {% if progress.is_completed %}
-      <p class="completed-badge">&#10003; Completed</p>
-    {% else %}
-      <button
-        id="btn-complete"
-        class="btn-primary"
-        data-url="{% url 'learning:mark_complete' course.slug module.slug lesson.slug %}"
-      >
-        Tugatilgan deb belgilash
-      </button>
-    {% endif %}
-  </div>
-{% endif %}
-
-  <!-- Prev / Next navigation -->
-  <div class="lesson-nav">
-    {% if prev_lesson %}
-      <a class="btn-secondary" href="{% url 'learning:lesson_detail' course.slug module.slug prev_lesson.slug %}">
-        &larr; {{ prev_lesson.title }}
-      </a>
-    {% else %}
-      <span></span>
-    {% endif %}
-    {% if next_lesson %}
-      <a class="btn-secondary" href="{% url 'learning:lesson_detail' course.slug module.slug next_lesson.slug %}">
-        {{ next_lesson.title }} &rarr;
-      </a>
-    {% endif %}
-  </div>
-</div>
-{% endif %}
 
 <!-- Syntax highlighting for code blocks in description and notes -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
