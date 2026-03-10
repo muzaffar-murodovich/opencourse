@@ -98,24 +98,26 @@
 {% else %}
 <!-- Unauthenticated: single column, no notes panel -->
 <div class="lesson-main">
+  
+  <!-- YouTube embed -->
+  <div class="video-wrapper">
+    <iframe
+    src="https://www.youtube.com/embed/{{ lesson.youtube_video_id }}"
+    title="{{ lesson.title }}"
+    frameborder="0"
+    referrerpolicy="strict-origin-when-cross-origin"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+    allowfullscreen
+    >
+    </iframe>
+  </div>
+
   {% if lesson_description_html %}
     <div class="md-content lesson-desc">{{ lesson_description_html }}</div>
   {% endif %}
 
-  <!-- YouTube embed -->
-  <div class="video-wrapper">
-    <iframe
-      src="https://www.youtube.com/embed/{{ lesson.youtube_video_id }}"
-      title="{{ lesson.title }}"
-      frameborder="0"
-      referrerpolicy="strict-origin-when-cross-origin"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowfullscreen
-      >
-    </iframe>
-  </div>
-
   <!-- Mark complete -->
+{% if user.is_authenticated %}
   <div class="complete-section">
     {% if progress.is_completed %}
       <p class="completed-badge">&#10003; Completed</p>
@@ -129,6 +131,7 @@
       </button>
     {% endif %}
   </div>
+{% endif %}
 
   <!-- Prev / Next navigation -->
   <div class="lesson-nav">
