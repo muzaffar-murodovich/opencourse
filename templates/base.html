@@ -39,7 +39,6 @@
         <a href="{% url 'learning:course_list' %}" class="sidebar-back">← Malakalar</a>
         <strong class="sidebar-skill-title">{{ sidebar_course.title }}</strong>
       </div>
-      {% if user.is_authenticated %}
       <ul class="subskill-accordion">
         {% for sub in sidebar_modules %}
         <li>
@@ -64,11 +63,6 @@
         <li class="sidebar-empty">No modules yet.</li>
         {% endfor %}
       </ul>
-      {% else %}
-      <div class="sidebar-auth">
-        <a href="{% url 'users:login' %}" class="btn-login">Login to view</a>
-      </div>
-      {% endif %}
     </nav>
     {% endif %}
 

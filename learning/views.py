@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
+# from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
@@ -63,7 +63,7 @@ class CourseListView(View):
 # /malaka/<course_slug>/
 # ---------------------------------------------------------------------------
 
-class CourseDetailView(LoginRequiredMixin, View):
+class CourseDetailView(View):
     template_name = 'learning/course_detail.html'
 
     def get(self, request, course_slug):
@@ -74,10 +74,12 @@ class CourseDetailView(LoginRequiredMixin, View):
             .order_by('order')
         )
 
-        course_seconds = VideoSession.objects.filter(
-            user=request.user,
-            lesson__module__course=course,
-        ).aggregate(Sum('actual_watched_seconds'))['actual_watched_seconds__sum'] or 0
+        course_seconds = 0
+        if request.user.is_authenticated:
+            course_seconds = VideoSession.objects.filter(
+                user=request.user,
+                lesson__module__course=course,
+            ).aggregate(Sum('actual_watched_seconds'))['actual_watched_seconds__sum'] or 0
 
         ctx = {
             'course': course,
@@ -96,7 +98,7 @@ class CourseDetailView(LoginRequiredMixin, View):
 # /malaka/<course_slug>/<module_slug>/
 # ---------------------------------------------------------------------------
 
-class ModuleDetailView(LoginRequiredMixin, View):
+class ModuleDetailView(View):
     template_name = 'learning/module_detail.html'
 
     def get(self, request, course_slug, module_slug):
@@ -104,17 +106,21 @@ class ModuleDetailView(LoginRequiredMixin, View):
         module = get_object_or_404(Module, slug=module_slug, course=course)
 
         lessons = list(module.lessons.order_by('order'))
-        lesson_ids = [lesson.id for lesson in lessons]
 
-        progress_map = {
-            p.lesson_id: p
-            for p in LessonProgress.objects.filter(
-                user=request.user,
-                lesson_id__in=lesson_ids,
-            )
-        }
-        for lesson in lessons:
-            lesson.progress = progress_map.get(lesson.id)
+        if request.user.is_authenticated:
+            lesson_ids = [lesson.id for lesson in lessons]
+            progress_map = {
+                p.lesson_id: p
+                for p in LessonProgress.objects.filter(
+                    user=request.user,
+                    lesson_id__in=lesson_ids,
+                )
+            }
+            for lesson in lessons:
+                lesson.progress = progress_map.get(lesson.id)
+        else:
+            for lesson in lessons:
+                lesson.progress = None
 
         sidebar_modules = course.modules.prefetch_related('lessons').order_by('order')
 
@@ -135,7 +141,7 @@ class ModuleDetailView(LoginRequiredMixin, View):
 # /malaka/<course_slug>/<module_slug>/<lesson_slug>/
 # ---------------------------------------------------------------------------
 
-class LessonDetailView(LoginRequiredMixin, View):
+class LessonDetailView(View):
     template_name = 'learning/lesson_detail.html'
 
     def get(self, request, course_slug, module_slug, lesson_slug):
@@ -143,9 +149,14 @@ class LessonDetailView(LoginRequiredMixin, View):
         module = get_object_or_404(Module, slug=module_slug, course=course)
         lesson = get_object_or_404(Lesson, slug=lesson_slug, module=module)
 
-        progress, _ = LessonProgress.objects.get_or_create(
-            user=request.user, lesson=lesson
-        )
+        if request.user.is_authenticated:
+            progress, _ = LessonProgress.objects.get_or_create(
+                user=request.user, lesson=lesson
+            )
+            note = Note.objects.filter(user=request.user, lesson=lesson).first()
+        else:
+            progress = None
+            note = None
 
         sibling_lessons = list(module.lessons.order_by('order'))
         current_index = next(
@@ -156,7 +167,9 @@ class LessonDetailView(LoginRequiredMixin, View):
 
         sidebar_modules = course.modules.prefetch_related('lessons').order_by('order')
 
-        note = Note.objects.filter(user=request.user, lesson=lesson).first()
+        # ... (qolgan ctx va render qismi o'zgarishsiz)
+
+        # note = Note.objects.filter(user=request.user, lesson=lesson).first()Tugatilgan deb belgilash
 
         ctx = {
             'course': course,
