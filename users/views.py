@@ -172,11 +172,11 @@ class ProfileView(LoginRequiredMixin, View):
             .filter(user=user, started_at__date__gte=since)
             .annotate(day=TruncDate('started_at'))
             .values('day')
-            .annotate(minutes=Sum('actual_watched_seconds'))
-            .values('day', 'minutes')
+            .annotate(total_seconds=Sum('actual_watched_seconds'))
+            .values('day', 'total_seconds')
         )
         activity_map = {
-            str(row['day']): row['minutes'] // 60
+            str(row['day']): row['total_seconds'] // 60
             for row in raw_activity
         }
 
