@@ -90,6 +90,7 @@ class VideoSession(models.Model):
     last_position_seconds = models.PositiveIntegerField(default=0)
     actual_watched_seconds = models.PositiveIntegerField(default=0)
     max_reached_seconds = models.PositiveIntegerField(default=0)
+    last_play_position = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
         indexes = [models.Index(fields=['user', 'lesson', 'ended_at'])]

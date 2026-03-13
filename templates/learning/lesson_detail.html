@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{{ lesson.title }} — Ochiq kurs{% endblock %}
 
@@ -7,6 +8,15 @@
 @media (min-width: 1024px) {
   main.content { max-width: none; }
 }
+.lesson-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  padding: 10px 24px; border-radius: 8px; color: #fff; font-size: 14px;
+  z-index: 9999; animation: toast-in 0.3s ease;
+}
+.lesson-toast-error   { background: #d32f2f; }
+.lesson-toast-warning { background: #f57c00; }
+.lesson-toast-info    { background: #1976d2; }
+@keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 </style>
 
 <nav class="breadcrumb">
@@ -21,16 +31,16 @@
   <div class="lesson-grid">
 
     <div class="lesson-main">
-      
-      <!-- YouTube IFrame API player (tracking enabled for authenticated users) -->
+
+      <!-- YouTube IFrame API player -->
       <div class="video-wrapper">
         <div id="yt-player"></div>
       </div>
-    
+
     {% if lesson_description_html %}
       <div class="md-content lesson-desc">{{ lesson_description_html }}</div>
     {% endif %}
-    
+
       <!-- Mark complete -->
       {% if user.is_authenticated %}
         <div class="complete-section">
@@ -40,7 +50,6 @@
             <button
               id="btn-complete"
               class="btn-primary"
-              data-url="{% url 'learning:mark_complete' course.slug module.slug lesson.slug %}"
             >
               Tugatilgan deb belgilash
             </button>
@@ -105,12 +114,25 @@
 
   </div>
 
+<!-- Config JSON for JS modules -->
+<script id="lesson-config" type="application/json">
+{
+  "lesson_id": {{ lesson.id }},
+  "video_id": "{{ lesson.youtube_video_id }}",
+  "csrf_token": "{{ csrf_token }}",
+  "is_authenticated": {% if user.is_authenticated %}true{% else %}false{% endif %},
+  "url_start": "{% url 'learning:session_start' course.slug module.slug lesson.slug %}",
+  "url_event": "{% url 'learning:session_event' course.slug module.slug lesson.slug %}",
+  "url_beacon": "{% url 'learning:session_beacon' course.slug module.slug lesson.slug %}",
+  "url_complete": "{% url 'learning:mark_complete' course.slug module.slug lesson.slug %}"
+}
+</script>
+
 <!-- Syntax highlighting for code blocks in description and notes -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script>
 (function () {
-  // Normalize class="python" → class="language-python" for Highlight.js
   document.querySelectorAll('pre code[class]').forEach(function (el) {
     var c = el.className;
     if (!c.startsWith('language-') && !c.startsWith('hljs')) {
@@ -121,249 +143,9 @@
 }());
 </script>
 
-<script>
-(function () {
-  // Mark lesson complete
-  var btnComplete = document.getElementById('btn-complete');
-  if (btnComplete) {
-    btnComplete.addEventListener('click', function () {
-      fetch(btnComplete.dataset.url, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': '{{ csrf_token }}',
-          'Content-Type': 'application/json',
-        },
-        credentials: 'same-origin',
-      })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (data.status === 'ok') {
-          var badge = document.createElement('p');
-          badge.className = 'completed-badge';
-          badge.textContent = '\u2713 Completed';
-          btnComplete.parentNode.replaceChild(badge, btnComplete);
-        }
-      })
-      .catch(function (err) { console.error('Error marking lesson complete:', err); });
-    });
-  }
-
-  // Note edit/preview toggle
-  var btnEdit = document.getElementById('btn-edit-note');
-  var noteEditor = document.getElementById('note-editor');
-  var notePreview = document.getElementById('note-preview');
-  if (btnEdit) {
-    btnEdit.addEventListener('click', function () {
-      notePreview.classList.add('note-hidden');
-      btnEdit.classList.add('note-hidden');
-      noteEditor.classList.remove('note-hidden');
-      document.getElementById('note-content').focus();
-    });
-  }
-
-  // Save note
-  var btnNote = document.getElementById('btn-save-note');
-  var noteStatus = document.getElementById('note-status');
-  if (btnNote) {
-    btnNote.addEventListener('click', function () {
-      var content = document.getElementById('note-content').value;
-      fetch(btnNote.dataset.url, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': '{{ csrf_token }}',
-          'Content-Type': 'application/json',
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify({ content: content }),
-      })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (data.status === 'ok') {
-          noteStatus.textContent = '\u2713 Saqlandi';
-          noteStatus.className = 'note-status note-status-ok';
-          // Update preview with server-rendered markdown
-          if (notePreview && data.rendered !== undefined) {
-            notePreview.innerHTML = data.rendered || '';
-            notePreview.querySelectorAll('pre code').forEach(function (el) {
-              if (typeof hljs !== 'undefined') { hljs.highlightElement(el); }
-            });
-          }
-          // Switch to preview mode after a brief pause so user sees "Saqlandi"
-          setTimeout(function () {
-            noteStatus.textContent = '';
-            if (content.trim() && noteEditor && notePreview) {
-              noteEditor.classList.add('note-hidden');
-              notePreview.classList.remove('note-hidden');
-              if (btnEdit) { btnEdit.classList.remove('note-hidden'); }
-            }
-          }, 800);
-        }
-      })
-      .catch(function (err) { console.error('Note save error:', err); });
-    });
-  }
-}());
-</script>
-
-<script>
-(function () {
-  var LESSON_ID   = {{ lesson.id }};
-  var VIDEO_ID    = '{{ lesson.youtube_video_id }}';
-  var CSRF        = '{{ csrf_token }}';
-  var URL_START   = '{% url "learning:session_start" course.slug module.slug lesson.slug %}';
-  var URL_EVENT   = '{% url "learning:session_event" course.slug module.slug lesson.slug %}';
-  var URL_BEACON  = '{% url "learning:session_beacon" course.slug module.slug lesson.slug %}';
-  var SESSION_KEY = 'session_' + LESSON_ID;
-
-  var player, sessionId, heartbeatTimer;
-  var pauseTime = null;
-
-  // Warn if YT IFrame API does not fire within 5 seconds
-  var ytReady = false;
-  var ytTimeout = setTimeout(function () {
-    if (!ytReady) { console.warn('YouTube IFrame API did not fire within 5 s'); }
-  }, 5000);
-
-  window.onYouTubeIframeAPIReady = function () {
-    ytReady = true;
-    clearTimeout(ytTimeout);
-    player = new YT.Player('yt-player', {
-      videoId: VIDEO_ID,
-      playerVars: { rel: 0 },
-      events: {
-        onReady: onPlayerReady,
-        onStateChange: onStateChange,
-        onPlaybackRateChange: onRateChange,
-      },
-    });
-  };
-
-  function onPlayerReady(event) {
-    var duration = player.getDuration();
-    sessionId = sessionStorage.getItem(SESSION_KEY);
-    if (sessionId) { return; }
-    fetch(URL_START, {
-      method: 'POST',
-      headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({ duration_seconds: Math.round(duration) }),
-    })
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      sessionId = d.session_id;
-      sessionStorage.setItem(SESSION_KEY, sessionId);
-      sessionStorage.setItem(SESSION_KEY + '_ts', Date.now());
-    })
-    .catch(function (e) { console.error('session/start error:', e); });
-  }
-
-  function sendEvent(type, position, metadata) {
-    if (!sessionId) { return; }
-    fetch(URL_EVENT, {
-      method: 'POST',
-      headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({
-        session_id: sessionId,
-        event_type: type,
-        position_seconds: Math.round(position),
-        metadata: metadata || {},
-      }),
-    })
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      if (d.auto_completed) { markCompletedInUI(); }
-    })
-    .catch(function (e) { console.error('session/event error:', e); });
-  }
-
-  function onStateChange(event) {
-    var t = player.getCurrentTime();
-    if (event.data === YT.PlayerState.PLAYING) {
-      // Detect seek: position jumped more than 2 s from where we last paused
-      if (pauseTime !== null && Math.abs(t - pauseTime) > 2) {
-        sendEvent('seek', pauseTime, { seek_to: Math.round(t) });
-      }
-      pauseTime = null;
-      sendEvent('play', t, {});
-      clearInterval(heartbeatTimer);
-      heartbeatTimer = setInterval(function () {
-        if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-          sendEvent('heartbeat', player.getCurrentTime(), {});
-        }
-      }, 10000);
-    } else if (event.data === YT.PlayerState.PAUSED) {
-      pauseTime = t;
-      clearInterval(heartbeatTimer);
-      sendEvent('pause', t, {});
-    } else if (event.data === YT.PlayerState.ENDED) {
-      pauseTime = null;
-      clearInterval(heartbeatTimer);
-      sendEvent('ended', t, {});
-    }
-  }
-
-  function onRateChange(event) {
-    if (!sessionId) { return; }
-    sendEvent('speed_change', player.getCurrentTime(), { playback_rate: event.data });
-  }
-
-  document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'hidden') {
-      if (!sessionId) { return; }
-      clearInterval(heartbeatTimer);
-      var pos = player ? Math.round(player.getCurrentTime()) : 0;
-      var payload = JSON.stringify({
-        session_id: sessionId,
-        event_type: 'page_hidden',
-        position_seconds: pos,
-        metadata: {},
-      });
-      navigator.sendBeacon(URL_BEACON, new Blob([payload], { type: 'application/json' }));
-      sessionStorage.setItem(SESSION_KEY + '_ts', Date.now());
-    } else if (document.visibilityState === 'visible') {
-      var ts = parseInt(sessionStorage.getItem(SESSION_KEY + '_ts') || '0', 10);
-      var elapsedMin = (Date.now() - ts) / 60000;
-      if (elapsedMin > 30) {
-        // More than 30 min away — start a fresh session
-        sessionStorage.removeItem(SESSION_KEY);
-        sessionStorage.removeItem(SESSION_KEY + '_ts');
-        sessionId = null;
-        if (player) {
-          var dur = player.getDuration();
-          fetch(URL_START, {
-            method: 'POST',
-            headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify({ duration_seconds: Math.round(dur) }),
-          })
-          .then(function (r) { return r.json(); })
-          .then(function (d) {
-            sessionId = d.session_id;
-            sessionStorage.setItem(SESSION_KEY, sessionId);
-            sessionStorage.setItem(SESSION_KEY + '_ts', Date.now());
-          })
-          .catch(function (e) { console.error('session/start error:', e); });
-        }
-      }
-      // else: within 30 min — keep sessionId (backend reactivated on page_hidden)
-    }
-  });
-
-  function markCompletedInUI() {
-    var btn = document.getElementById('btn-complete');
-    if (btn) {
-      var badge = document.createElement('p');
-      badge.className = 'completed-badge';
-      badge.textContent = '\u2713 Completed';
-      btn.parentNode.replaceChild(badge, btn);
-    }
-  }
-
-  // Load YouTube IFrame API
-  var tag = document.createElement('script');
-  tag.src = 'https://www.youtube.com/iframe_api';
-  document.head.appendChild(tag);
-}());
-</script>
+<!-- Extracted JS modules -->
+<script src="{% static 'js/lesson_tracker.js' %}"></script>
+{% if user.is_authenticated %}
+<script src="{% static 'js/lesson_notes.js' %}"></script>
+{% endif %}
 {% endblock %}

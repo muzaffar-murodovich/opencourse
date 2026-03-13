@@ -13,7 +13,6 @@ from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-from django.db.models.functions import Greatest
 
 from .models import Lesson, LessonProgress, Note, Course, Module, VideoEvent, VideoSession
 from .utils import render_markdown
@@ -150,9 +149,9 @@ class LessonDetailView(View):
         lesson = get_object_or_404(Lesson, slug=lesson_slug, module=module)
 
         if request.user.is_authenticated:
-            progress, _ = LessonProgress.objects.get_or_create(
+            progress = LessonProgress.objects.filter(
                 user=request.user, lesson=lesson
-            )
+            ).first()
             note = Note.objects.filter(user=request.user, lesson=lesson).first()
         else:
             progress = None
@@ -166,10 +165,6 @@ class LessonDetailView(View):
         next_lesson = sibling_lessons[current_index + 1] if current_index is not None and current_index < len(sibling_lessons) - 1 else None
 
         sidebar_modules = course.modules.prefetch_related('lessons').order_by('order')
-
-        # ... (qolgan ctx va render qismi o'zgarishsiz)
-
-        # note = Note.objects.filter(user=request.user, lesson=lesson).first()Tugatilgan deb belgilash
 
         ctx = {
             'course': course,
@@ -199,15 +194,13 @@ def mark_lesson_complete(request, course_slug, module_slug, lesson_slug):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
-    course = get_object_or_404(Course, slug=course_slug)
-    module = get_object_or_404(Module, slug=module_slug, course=course)
-    lesson = get_object_or_404(Lesson, slug=lesson_slug, module=module)
+    lesson = _get_lesson(course_slug, module_slug, lesson_slug)
 
     progress, _ = LessonProgress.objects.get_or_create(
         user=request.user, lesson=lesson
     )
     progress.is_completed = True
-    progress.save()
+    progress.save(update_fields=['is_completed'])
 
     _update_streak(request.user)
 
@@ -249,9 +242,7 @@ def save_note(request, course_slug, module_slug, lesson_slug):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
-    course = get_object_or_404(Course, slug=course_slug)
-    module = get_object_or_404(Module, slug=module_slug, course=course)
-    lesson = get_object_or_404(Lesson, slug=lesson_slug, module=module)
+    lesson = _get_lesson(course_slug, module_slug, lesson_slug)
 
     try:
         content = json.loads(request.body).get('content', '')
@@ -277,25 +268,28 @@ def _get_lesson(course_slug, module_slug, lesson_slug):
     return get_object_or_404(Lesson, slug=lesson_slug, module=module)
 
 
-def _recalculate_watched(session):
-    """Update session.actual_watched_seconds from play/pause event intervals (does not save)."""
-    events = list(session.events.order_by('created_at'))
-    total = 0.0
-    play_start = None
-    for ev in events:
-        if ev.event_type == 'play':
-            play_start = ev.position_seconds
-        elif ev.event_type in ('pause', 'ended', 'page_hidden') and play_start is not None:
-            diff = ev.position_seconds - play_start
-            if diff > 0:
-                total += diff
-            play_start = None
-        elif ev.event_type == 'seek' and play_start is not None:
-            diff = ev.position_seconds - play_start
-            if diff > 0:
-                total += diff
-            play_start = None
-    session.actual_watched_seconds = int(total)
+VALID_EVENT_TYPES = {et[0] for et in VideoEvent.EVENT_TYPES}
+MAX_METADATA_SIZE = 1024  # bytes
+EVENT_RATE_LIMIT_SECONDS = 1  # min interval between events per session
+
+
+def _clamp_position(position, lesson):
+    """Clamp position to [0, duration] if duration is known."""
+    position = max(0, position)
+    if lesson.duration_seconds:
+        position = min(position, lesson.duration_seconds)
+    return position
+
+
+def _update_watched_incremental(session, event_type, position):
+    """Incrementally update actual_watched_seconds without re-reading all events."""
+    if event_type == 'play':
+        session.last_play_position = position
+    elif event_type in ('pause', 'ended', 'page_hidden', 'seek') and session.last_play_position is not None:
+        diff = position - session.last_play_position
+        if diff > 0:
+            session.actual_watched_seconds += diff
+        session.last_play_position = None
 
 
 def _maybe_auto_complete(session, lesson):
@@ -308,6 +302,7 @@ def _maybe_auto_complete(session, lesson):
     if not progress.is_completed:
         progress.is_completed = True
         progress.save(update_fields=['is_completed'])
+        _update_streak(session.user)
         return True
     return False
 
@@ -317,9 +312,33 @@ def _handle_session_event(request, lesson, data):
     session = get_object_or_404(
         VideoSession, id=data.get('session_id'), user=request.user, lesson=lesson
     )
+
+    # Validate event_type
     event_type = data.get('event_type', '')
-    position = int(data.get('position_seconds', 0))
+    if event_type not in VALID_EVENT_TYPES:
+        return JsonResponse({'error': 'Invalid event_type'}, status=400)
+
+    # Validate and clamp position
+    try:
+        position = int(data.get('position_seconds', 0))
+    except (TypeError, ValueError):
+        return JsonResponse({'error': 'Invalid position_seconds'}, status=400)
+    position = _clamp_position(position, lesson)
+
+    # Validate metadata size
     metadata = data.get('metadata') or {}
+    if len(json.dumps(metadata)) > MAX_METADATA_SIZE:
+        metadata = {}  # silently drop oversized metadata
+
+    # Rate limiting: only throttle heartbeat events (high-frequency).
+    # State-critical events (play, pause, seek, ended, page_hidden, speed_change)
+    # must always be processed to keep the incremental watch time state machine correct.
+    if event_type == 'heartbeat':
+        last_event = session.events.order_by('-created_at').first()
+        if last_event:
+            elapsed = (timezone.now() - last_event.created_at).total_seconds()
+            if elapsed < EVENT_RATE_LIMIT_SECONDS:
+                return JsonResponse({'status': 'ok', 'auto_completed': False, 'throttled': True})
 
     VideoEvent.objects.create(
         session=session,
@@ -328,18 +347,26 @@ def _handle_session_event(request, lesson, data):
         metadata=metadata,
     )
 
-    _recalculate_watched(session)
+    # Incremental watched time update (no full event scan)
+    _update_watched_incremental(session, event_type, position)
+
     session.last_position_seconds = position
     session.max_reached_seconds = max(position, session.max_reached_seconds)
-    save_fields = ['actual_watched_seconds', 'last_position_seconds', 'max_reached_seconds']
+    save_fields = [
+        'actual_watched_seconds', 'last_position_seconds',
+        'max_reached_seconds', 'last_play_position',
+    ]
     if event_type in ('ended', 'page_hidden'):
         session.ended_at = timezone.now()
         save_fields.append('ended_at')
     session.save(update_fields=save_fields)
 
-    LessonProgress.objects.filter(user=request.user, lesson=lesson).update(
-        watched_seconds=Greatest('watched_seconds', session.actual_watched_seconds)
+    progress, created = LessonProgress.objects.get_or_create(
+        user=request.user, lesson=lesson
     )
+    if created or session.actual_watched_seconds > progress.watched_seconds:
+        progress.watched_seconds = max(progress.watched_seconds, session.actual_watched_seconds)
+        progress.save(update_fields=['watched_seconds'])
 
     auto_completed = _maybe_auto_complete(session, lesson)
     return JsonResponse({'status': 'ok', 'auto_completed': auto_completed})
