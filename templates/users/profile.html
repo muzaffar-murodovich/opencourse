@@ -77,6 +77,30 @@
     </div>
   </div>
 
+  {% if in_progress_courses %}
+  <div class="profile-section">
+    <h2>Davom etish</h2>
+    {% for cp in in_progress_courses %}
+    <div class="continue-course">
+      <div class="continue-header">
+        <a href="/malaka/{{ cp.course_slug }}/" class="continue-title">{{ cp.course_title }}</a>
+        <span class="continue-count">{{ cp.completed_lessons }}/{{ cp.total_lessons }} dars</span>
+      </div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" style="width: {{ cp.progress_percent }}%"></div>
+      </div>
+      {% if cp.next_lesson_slug %}
+      <a href="/malaka/{{ cp.course_slug }}/{{ cp.next_module_slug }}/{{ cp.next_lesson_slug }}/" class="btn btn-sm btn-primary continue-btn">
+        Davom etish →
+      </a>
+      {% else %}
+      <span class="continue-done">✅ Kurs tugatildi!</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <div class="profile-section">
     <h2>Profil ma'lumotlari</h2>
     <form method="post">
@@ -228,6 +252,54 @@
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
+}
+
+/* Continue learning */
+.continue-course {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border-light);
+}
+.continue-course:last-child { border-bottom: none; }
+.continue-course:first-child { padding-top: 0; }
+.continue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: .5rem;
+}
+.continue-title {
+  font-weight: 600;
+  font-size: .95rem;
+  color: var(--text);
+  text-decoration: none;
+}
+.continue-title:hover { text-decoration: underline; }
+.continue-count {
+  font-size: .8rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.progress-bar-track {
+  height: 6px;
+  background: var(--border-light, #e8e8e8);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: .6rem;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: #40c463;
+  border-radius: 3px;
+  transition: width .3s ease;
+  min-width: 2%;
+}
+.continue-btn {
+  font-size: .82rem;
+  padding: .35rem .9rem;
+}
+.continue-done {
+  font-size: .85rem;
+  color: var(--muted);
 }
 </style>
 

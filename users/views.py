@@ -193,6 +193,56 @@ class ProfileView(LoginRequiredMixin, View):
 
         profile, _ = UserProfile.objects.get_or_create(user=user)
 
+        # In-progress courses
+        user_progress = list(
+            LessonProgress.objects
+            .filter(user=user)
+            .select_related('lesson__module__course')
+            .order_by('-last_watched_at')
+        )
+        # Group by course preserving most-recent-first order per course
+        course_data = {}  # course_id -> {'course', 'completed_ids', 'last_watched_at'}
+        for lp in user_progress:
+            course = lp.lesson.module.course
+            cid = course.id
+            if cid not in course_data:
+                course_data[cid] = {
+                    'course': course,
+                    'completed_ids': set(),
+                    'last_watched_at': lp.last_watched_at,
+                }
+            if lp.is_completed:
+                course_data[cid]['completed_ids'].add(lp.lesson_id)
+
+        in_progress_courses = []
+        for cid, data in course_data.items():
+            course = data['course']
+            lessons = list(
+                Lesson.objects
+                .filter(module__course=course)
+                .select_related('module')
+                .order_by('module__order', 'order')
+            )
+            total_lessons = len(lessons)
+            completed_ids = data['completed_ids']
+            completed_lessons = len(completed_ids)
+            progress_percent = int(completed_lessons / total_lessons * 100) if total_lessons else 0
+
+            next_lesson = next((l for l in lessons if l.id not in completed_ids), None)
+
+            in_progress_courses.append({
+                'course_title': course.title,
+                'course_slug': course.slug,
+                'total_lessons': total_lessons,
+                'completed_lessons': completed_lessons,
+                'progress_percent': progress_percent,
+                'next_lesson_slug': next_lesson.slug if next_lesson else None,
+                'next_module_slug': next_lesson.module.slug if next_lesson else None,
+                'last_watched_at': data['last_watched_at'],
+            })
+
+        in_progress_courses.sort(key=lambda x: x['last_watched_at'], reverse=True)
+
         return {
             'form': UserProfileForm(instance=user),
             'is_admin': user.is_staff or user.is_superuser,
@@ -205,6 +255,7 @@ class ProfileView(LoginRequiredMixin, View):
             'weeks': weeks,
             'current_streak': profile.current_streak,
             'longest_streak': profile.longest_streak,
+            'in_progress_courses': in_progress_courses,
         }
 
     def get(self, request):
