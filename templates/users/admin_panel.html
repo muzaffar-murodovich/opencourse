@@ -431,7 +431,6 @@
                     '<span class="bc-lesson-vid-badge" style="display:none;"></span>' +
                     '<div class="bc-lesson-actions">' +
                         '<button type="button" class="bc-btn-icon bc-toggle-lesson" title="Expand">&#x25BC;</button>' +
-                        '<button type="button" class="bc-btn-icon bc-duplicate-lesson" title="Duplicate">&#x2398;</button>' +
                         '<button type="button" class="bc-btn-icon bc-remove-lesson" title="Remove">&#x2715;</button>' +
                     '</div>' +
                 '</div>' +
@@ -490,21 +489,6 @@
                 Preview.update();
             });
 
-            // Duplicate
-            card.querySelector('.bc-duplicate-lesson').addEventListener('click', function (e) {
-                e.stopPropagation();
-                var parent = card.parentNode;
-                var idx = parent.querySelectorAll('.bc-lesson-card').length;
-                var clone = LessonBuilder.create(idx, {
-                    title: titleEl.value,
-                    description: card.querySelector('.bc-l-desc').value,
-                    youtube_video_id: vidEl.value,
-                    order: idx
-                });
-                card.after(clone);
-                renumberLessons(parent);
-                Preview.update();
-            });
 
             // Pre-fill data
             if (data.title) titleEl.value = data.title;
@@ -545,7 +529,6 @@
                     '<input type="text" class="bc-m-title bc-inline-title" placeholder="Module title">' +
                     '<div class="bc-module-actions">' +
                         '<button type="button" class="bc-btn-icon bc-toggle-module" title="Collapse">&#x25B2;</button>' +
-                        '<button type="button" class="bc-btn-icon bc-duplicate-module" title="Duplicate">&#x2398;</button>' +
                         '<button type="button" class="bc-btn-icon bc-remove-module" title="Remove">&#x2715;</button>' +
                     '</div>' +
                 '</div>' +
@@ -594,29 +577,6 @@
                 Preview.update();
             });
 
-            // Duplicate
-            card.querySelector('.bc-duplicate-module').addEventListener('click', function (e) {
-                e.stopPropagation();
-                var idx = moduleCounter++;
-                var lessonData = [];
-                card.querySelectorAll('.bc-lesson-card').forEach(function (l) {
-                    lessonData.push({
-                        title: l.querySelector('.bc-l-title').value,
-                        description: l.querySelector('.bc-l-desc').value,
-                        youtube_video_id: l.querySelector('.bc-l-vid').value,
-                        order: lessonData.length
-                    });
-                });
-                var clone = ModuleBuilder.create(idx, {
-                    title: titleEl.value,
-                    description: card.querySelector('.bc-m-desc').value,
-                    order: idx,
-                    lessons: lessonData
-                });
-                card.after(clone);
-                renumberModules();
-                Preview.update();
-            });
 
             // Add lesson
             card.querySelector('.bc-add-lesson-btn').addEventListener('click', function () {
