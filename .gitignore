@@ -11,3 +11,4 @@ media/
 .claude
 /venv
 deploy.sh
+playlist-fetcher/output.json
