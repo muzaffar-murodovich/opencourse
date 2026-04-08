@@ -175,6 +175,12 @@ New users get `set_unusable_password()` — Telegram-only auth by default.
 - `python manage.py fill_durations` — fetches `duration_seconds` from the YouTube API for all lessons missing duration data
 - Useful after bulk-importing a course to populate accurate lesson lengths
 
+### Course Detail Page
+- `CourseDetailView` renders all modules with their lessons inline using an accordion (`<details>` blocks) — the first module is open by default
+- Each module shows a progress bar, completion percentage, and total duration; completed lessons get a check mark
+- A "Davom etish" (Continue) button at the top links to the first incomplete lesson across the whole course
+- View builds a `modules_data` list with per-module `total`, `completed`, `percent`, and `total_seconds`, using a single `LessonProgress` query keyed by lesson id
+
 ---
 
 ## Environment Variables
@@ -214,6 +220,8 @@ For local dev, copy `.env.example` to `.env` (not committed).
 - Session storage used for video resume state between page loads
 - Beacon API (`navigator.sendBeacon`) used on `visibilitychange`/`pagehidden` events
 - Highlight.js used for code block syntax highlighting in lesson descriptions/notes
+- Sidebar (module/lesson navigation) is only shown on the lesson detail page. Views that should render the sidebar must set `show_sidebar`, `sidebar_course`, and `sidebar_modules` in context — `base.html` guards on `{% if show_sidebar %}`. Course and module detail pages intentionally omit the sidebar.
+- `.content-full` (applied when no sidebar) is capped at 1400px and centered to keep the home page and course detail page readable on wide screens
 
 ---
 
