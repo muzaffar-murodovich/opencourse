@@ -39,7 +39,13 @@
 
       <div class="ch-instructor">
         <span class="avatar avatar-sm">{{ course.instructor_display|initials }}</span>
-        <span>O'qituvchi: <strong style="color:#fff">{{ course.instructor_display }}</strong></span>
+        <span>O'qituvchi: <strong style="color:#fff">
+          {% if course.instructor %}
+          <a href="{% url 'learning:instructor_detail' course.instructor.username %}" style="color:#fff;text-decoration:underline;text-underline-offset:3px">{{ course.instructor_display }}</a>
+          {% else %}
+          {{ course.instructor_display }}
+          {% endif %}
+        </strong></span>
       </div>
     </div>
 
@@ -330,7 +336,13 @@
       <div style="display:flex;gap:18px;align-items:center;margin-bottom:14px">
         <span class="avatar avatar-lg">{{ course.instructor_display|initials }}</span>
         <div>
-          <h2 style="margin:0 0 4px">{{ course.instructor_display }}</h2>
+          <h2 style="margin:0 0 4px">
+            {% if course.instructor %}
+            <a href="{% url 'learning:instructor_detail' course.instructor.username %}" style="color:inherit;text-decoration:none">{{ course.instructor_display }}</a>
+            {% else %}
+            {{ course.instructor_display }}
+            {% endif %}
+          </h2>
           <div class="text-muted">{{ course.category.name|default:"Mutaxassis" }} · Ochiq Kurs jamoasi</div>
         </div>
       </div>

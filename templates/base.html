@@ -42,6 +42,7 @@
 
       <nav class="navbar-nav">
         <a href="{% url 'learning:course_list' %}" class="navbar-link nav-only-desktop">Kurslar</a>
+        <a href="{% url 'learning:learning_path_list' %}" class="navbar-link nav-only-desktop">Yo'nalishlar</a>
         <a href="{% url 'learning:leaderboard' %}" class="navbar-link nav-only-desktop">Reyting</a>
         {% if user.is_authenticated %}
           <a href="{% url 'learning:my_learning' %}" class="navbar-link nav-only-desktop">Mening kurslarim</a>
