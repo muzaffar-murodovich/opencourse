@@ -3099,10 +3099,10 @@ html[data-theme="dark"] .qa-ask textarea:focus { box-shadow: 0 0 0 3px rgba(16,1
 .quiz-take-header { margin-bottom: 24px; }
 .quiz-take-header h1 { font-size: 1.3rem; }
 .quiz-question-block {
-  display: flex; gap: 16px;
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--r-sm); padding: 20px; margin-bottom: 12px;
+  border-radius: var(--r-sm); padding: 24px; margin-bottom: 12px;
 }
+.quiz-question-block[hidden] { display: none; }
 .qq-num {
   width: 32px; height: 32px; border-radius: 50%;
   background: var(--brand-100); color: var(--brand-700);
@@ -3145,9 +3145,61 @@ html[data-theme="dark"] .qa-ask textarea:focus { box-shadow: 0 0 0 3px rgba(16,1
   box-shadow: inset 0 0 0 3px #fff;
 }
 .qq-label { font-size: 0.95rem; }
-.quiz-submit-area {
+
+/* Graded answer states (one-question-at-a-time flow) */
+.qq-choice input[type="radio"]:disabled { cursor: default; }
+.qq-choice.qq-correct {
+  border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+}
+.qq-choice.qq-correct .qq-radio {
+  border-color: var(--success); background: var(--success); box-shadow: inset 0 0 0 3px #fff;
+}
+.qq-choice.qq-wrong {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+.qq-choice.qq-wrong .qq-radio {
+  border-color: var(--danger); background: var(--danger); box-shadow: inset 0 0 0 3px #fff;
+}
+.qq-mark { margin-left: auto; font-weight: 700; font-size: 0.95rem; }
+.qq-choice.qq-correct .qq-mark::after { content: "\2713"; color: var(--success); }
+.qq-choice.qq-wrong .qq-mark::after { content: "\2717"; color: var(--danger); }
+.qq-explanation {
+  margin-top: 14px; padding: 12px 14px;
+  background: var(--brand-50); border-left: 3px solid var(--brand-400);
+  border-radius: var(--r-sm); font-size: 0.9rem; line-height: 1.5;
+}
+
+/* Progress + action bar */
+.quiz-progress { margin-top: 10px; }
+.quiz-progress-text { font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
+.quiz-progress-bar { height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
+.quiz-progress-fill { height: 100%; width: 0; background: var(--brand-500); border-radius: 999px; transition: width .25s ease; }
+
+.quiz-action-area {
   margin-top: 24px; display: flex; align-items: center; gap: 16px;
 }
+.quiz-action-area .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Inline result (shown in place after the last question) */
+.quiz-inline-result {
+  text-align: center; padding: 32px 24px;
+  border: 1px solid var(--border); border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.quiz-inline-result.qir-passed { border-color: var(--success); }
+.quiz-inline-result.qir-failed { border-color: var(--danger); }
+.qir-badge {
+  width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.8rem; font-weight: 700; color: #fff;
+}
+.qir-passed .qir-badge { background: var(--success); }
+.qir-failed .qir-badge { background: var(--danger); }
+.quiz-inline-result h2 { font-size: 1.25rem; margin-bottom: 8px; }
+.qir-score { font-size: 1.5rem; font-weight: 800; margin-bottom: 20px; }
+.qir-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 
 /* Quiz result */
 .qr-hero {

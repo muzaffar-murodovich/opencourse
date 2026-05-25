@@ -584,21 +584,25 @@ class LessonDetailView(View):
                 .order_by('timestamp_seconds')
             )
 
-        # Quizzes — only standalone quiz-type lessons surface a quiz now
+        # Quizzes — only standalone quiz-type lessons surface a quiz now.
+        # Taken inline: an in-progress attempt renders its questions in place of
+        # the hero/start screen (see `active_*` below).
         quizzes_with_meta = []
+        active_quiz = active_attempt = active_questions = None
+        active_answered_ids_json = '[]'
         if lesson.lesson_type == 'quiz' and request.user.is_authenticated:
             for quiz in lesson.quizzes.all():
                 questions_count = quiz.questions.count()
-                past_attempts = list(
-                    quiz.attempts.filter(user=request.user).order_by('-started_at')[:10]
+                user_attempts = list(
+                    quiz.attempts.filter(user=request.user).order_by('-started_at')
                 )
+                past_attempts = user_attempts[:10]
                 best_attempt = None
                 if past_attempts:
                     best_attempt = max(past_attempts, key=lambda a: a.percentage())
                 attempts_remaining = -1
                 if quiz.max_attempts > 0:
-                    used = quiz.attempts.filter(user=request.user).count()
-                    attempts_remaining = max(quiz.max_attempts - used, 0)
+                    attempts_remaining = max(quiz.max_attempts - len(user_attempts), 0)
                 quizzes_with_meta.append({
                     'quiz': quiz,
                     'questions_count': questions_count,
@@ -606,6 +610,17 @@ class LessonDetailView(View):
                     'best_attempt': best_attempt,
                     'attempts_remaining': attempts_remaining,
                 })
+                if active_attempt is None:
+                    in_progress = next((a for a in user_attempts if a.completed_at is None), None)
+                    if in_progress:
+                        active_quiz = quiz
+                        active_attempt = in_progress
+                        active_questions = list(
+                            quiz.questions.prefetch_related('choices').order_by('order')
+                        )
+                        active_answered_ids_json = json.dumps(
+                            list(in_progress.answers.values_list('question_id', flat=True))
+                        )
 
         ctx = {
             'course': course,
@@ -635,6 +650,10 @@ class LessonDetailView(View):
             'announcements': announcements,
             'bookmarks': bookmarks,
             'quizzes_with_meta': quizzes_with_meta,
+            'active_quiz': active_quiz,
+            'active_attempt': active_attempt,
+            'active_questions': active_questions,
+            'active_answered_ids_json': active_answered_ids_json,
         }
         return render(request, self.template_name, ctx)
 
@@ -1124,37 +1143,101 @@ def start_quiz(request, course_slug, module_slug, lesson_slug, quiz_id):
     if quiz.max_attempts > 0 and past_count >= quiz.max_attempts:
         messages.error(request, "Ushbu test uchun maksimal urinishlar soniga yetdingiz.")
         return redirect('learning:quiz_detail', course_slug, module_slug, lesson_slug, quiz_id)
-    attempt = QuizAttempt.objects.create(
+    QuizAttempt.objects.create(
         user=request.user,
         quiz=quiz,
         max_score=quiz.questions.count(),
     )
-    return redirect('learning:quiz_attempt', course_slug, module_slug, lesson_slug, quiz_id, attempt.id)
+    # The quiz is taken inline on the lesson page; the lesson view detects the
+    # in-progress attempt and renders the questions where the video would be.
+    return redirect('learning:lesson_detail', course_slug, module_slug, lesson_slug)
+
+
+def _finalize_quiz_attempt(attempt, user, lesson):
+    """Score a fully-answered attempt, set pass/fail, and run completion side effects."""
+    quiz = attempt.quiz
+    attempt.score = attempt.answers.filter(is_correct=True).count()
+    attempt.max_score = quiz.questions.count()
+    attempt.completed_at = timezone.now()
+    attempt.passed = (attempt.percentage() >= quiz.pass_percent)
+    attempt.save(update_fields=['score', 'max_score', 'completed_at', 'passed'])
+    if attempt.passed:
+        LessonProgress.objects.update_or_create(
+            user=user, lesson=lesson, defaults={'is_completed': True},
+        )
+        _update_streak(user)
+        _maybe_issue_certificate(user, lesson.module.course)
 
 
 @login_required
-def quiz_attempt_view(request, course_slug, module_slug, lesson_slug, quiz_id, attempt_id):
+@transaction.atomic
+def check_quiz_answer(request, course_slug, module_slug, lesson_slug, quiz_id, attempt_id):
+    """Record and grade a single question, returning correctness + explanation.
+
+    Finalizes the attempt automatically once every question has an answer.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
     lesson = _get_lesson(course_slug, module_slug, lesson_slug)
     quiz = get_object_or_404(Quiz, id=quiz_id, lesson=lesson)
     attempt = get_object_or_404(QuizAttempt, id=attempt_id, user=request.user, quiz=quiz)
     if attempt.completed_at:
-        return redirect('learning:quiz_result', course_slug, module_slug, lesson_slug, quiz_id, attempt_id)
-    questions = list(
-        quiz.questions.prefetch_related('choices').order_by('order')
+        return JsonResponse({'error': 'Attempt already completed'}, status=400)
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    try:
+        question = quiz.questions.get(id=int(data.get('question_id')))
+    except (QuizQuestion.DoesNotExist, ValueError, TypeError):
+        return JsonResponse({'error': 'Invalid question'}, status=400)
+
+    selected_choice = None
+    is_correct = False
+    choice_id = data.get('choice_id')
+    if choice_id is not None:
+        try:
+            selected_choice = question.choices.get(id=int(choice_id))
+            is_correct = selected_choice.is_correct
+        except (QuizChoice.DoesNotExist, ValueError, TypeError):
+            return JsonResponse({'error': 'Invalid choice'}, status=400)
+
+    QuizAnswer.objects.update_or_create(
+        attempt=attempt,
+        question=question,
+        defaults={'selected_choice': selected_choice, 'is_correct': is_correct},
     )
-    return render(request, 'learning/quiz_take.html', {
-        'course': lesson.module.course,
-        'module': lesson.module,
-        'lesson': lesson,
-        'quiz': quiz,
-        'attempt': attempt,
-        'questions': questions,
+
+    correct_choice = question.choices.filter(is_correct=True).first()
+    total = quiz.questions.count()
+    answered = attempt.answers.count()
+    finished = answered >= total
+    result = None
+    if finished:
+        _finalize_quiz_attempt(attempt, request.user, lesson)
+        result = {
+            'score': float(attempt.score),
+            'max_score': attempt.max_score,
+            'percentage': attempt.percentage(),
+            'passed': attempt.passed,
+        }
+
+    return JsonResponse({
+        'is_correct': is_correct,
+        'correct_choice_id': correct_choice.id if correct_choice else None,
+        'explanation': question.explanation,
+        'answered': answered,
+        'total': total,
+        'finished': finished,
+        'result': result,
+        'redirect_url': reverse('learning:quiz_result', args=[course_slug, module_slug, lesson_slug, quiz_id, attempt_id]),
     })
 
 
 @login_required
 @transaction.atomic
 def submit_quiz_answer(request, course_slug, module_slug, lesson_slug, quiz_id, attempt_id):
+    """Grade a whole quiz from one JSON payload (legacy all-at-once submission)."""
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     lesson = _get_lesson(course_slug, module_slug, lesson_slug)
@@ -1167,12 +1250,9 @@ def submit_quiz_answer(request, course_slug, module_slug, lesson_slug, quiz_id, 
     except (json.JSONDecodeError, ValueError):
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
     answers = data.get('answers', {})
-    score = 0
-    max_score = quiz.questions.count()
     attempt.answers.all().delete()
     for q_data in quiz.questions.prefetch_related('choices').all():
-        q_id = str(q_data.id)
-        selected_id = answers.get(q_id)
+        selected_id = answers.get(str(q_data.id))
         selected_choice = None
         is_correct = False
         if selected_id:
@@ -1187,27 +1267,12 @@ def submit_quiz_answer(request, course_slug, module_slug, lesson_slug, quiz_id, 
             selected_choice=selected_choice,
             is_correct=is_correct,
         )
-        if is_correct:
-            score += 1
-    attempt.score = score
-    attempt.max_score = max_score
-    attempt.completed_at = timezone.now()
-    attempt.passed = (attempt.percentage() >= quiz.pass_percent)
-    attempt.save(update_fields=['score', 'max_score', 'completed_at', 'passed'])
-
-    if attempt.passed:
-        LessonProgress.objects.update_or_create(
-            user=request.user,
-            lesson=lesson,
-            defaults={'is_completed': True},
-        )
-        _update_streak(request.user)
-        _maybe_issue_certificate(request.user, lesson.module.course)
+    _finalize_quiz_attempt(attempt, request.user, lesson)
 
     return JsonResponse({
         'status': 'ok',
-        'score': score,
-        'max_score': max_score,
+        'score': float(attempt.score),
+        'max_score': attempt.max_score,
         'percentage': attempt.percentage(),
         'passed': attempt.passed,
         'redirect_url': reverse('learning:quiz_result', args=[course_slug, module_slug, lesson_slug, quiz_id, attempt_id]),

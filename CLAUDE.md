@@ -187,8 +187,8 @@ Course      (title, slug, subtitle, description, thumbnail, category FK,
 | `/malaka/<course>/<module>/<lesson>/savol/<id>/javob/` | learning | POST: answer a question |
 | `/malaka/<course>/<module>/<lesson>/test/<quiz_id>/` | learning | Quiz overview (description, pass %, past attempts) |
 | `/malaka/<course>/<module>/<lesson>/test/<quiz_id>/boshlash/` | learning | POST: start quiz attempt |
-| `/malaka/<course>/<module>/<lesson>/test/<quiz_id>/urinish/<attempt_id>/` | learning | Take quiz (question display) |
-| `/malaka/<course>/<module>/<lesson>/test/<quiz_id>/urinish/<attempt_id>/javob/` | learning | POST: submit quiz answers (JSON) |
+| `/malaka/<course>/<module>/<lesson>/test/<quiz_id>/urinish/<attempt_id>/savol/tekshir/` | learning | POST: check + record one question's answer (JSON); finalizes the attempt when all are answered |
+| `/malaka/<course>/<module>/<lesson>/test/<quiz_id>/urinish/<attempt_id>/javob/` | learning | POST: submit all quiz answers at once (JSON; legacy, unused by UI) |
 | `/malaka/<course>/<module>/<lesson>/test/<quiz_id>/urinish/<attempt_id>/natija/` | learning | Quiz result with per-question review |
 | `/malaka/<course>/<module>/<lesson>/xatchop/` | learning | POST: save video bookmark (JSON: timestamp, note) |
 | `/malaka/<course>/<module>/<lesson>/xatchop/<id>/ochirish/` | learning | POST: delete video bookmark |
@@ -285,13 +285,18 @@ New users get `set_unusable_password()` — Telegram-only auth by default.
 - Admin: `list_filter` by status, three bulk actions (`make_published`, `make_draft`, `make_archived`).
 
 ### Quizzes
-- Quizzes are surfaced only on `lesson_type='quiz'` lessons — the quiz renders as the lesson's main content (a "hero" with start button + past-attempt history). Video/article lessons no longer have a "Test" tab (inline quizzes were removed; the `Quiz.lesson` FK is kept for a possible future inline-quiz feature). The view only builds `quizzes_with_meta` (and queries `lesson.quizzes`) when `lesson_type='quiz'`.
-- Per-lesson quizzes with multiple-choice or true/false questions.
-- Quiz detail page shows description, pass percentage, number of questions, and past attempts with scores.
-- POST `/boshlash/` creates a `QuizAttempt`. Max attempts enforced server-side.
-- Quiz taking: all questions displayed at once, radio-button selection, confirm-before-submit dialog for unanswered questions.
-- Submission via JSON POST to `/javob/`. Server auto-scores each answer, updates attempt with score/percentage/passed status. Passing the quiz marks the lesson `is_completed=True`, updates the streak, and may issue the course certificate.
-- Result page: score display, pass/fail badge (green/red), per-question review with correct answer highlight and explanation.
+- Quizzes are surfaced only on `lesson_type='quiz'` lessons, and are **taken inline on the lesson page** (in place of the video) — there is no separate take page. Video/article lessons have no "Test" tab (inline-on-other-lessons quizzes were removed; the `Quiz.lesson` FK is kept for a possible future feature). The view only builds quiz context when `lesson_type='quiz'`.
+- The quiz content area has three states, chosen in `LessonDetailView`:
+  1. **No active attempt** → "hero" (title, meta, "Testni boshlash") + past-attempt history (`quizzes_with_meta`).
+  2. **In-progress attempt** → the question UI renders inline (`active_quiz` / `active_attempt` / `active_questions` / `active_answered_ids_json`). `_next_lesson()` powers the inline result's forward link.
+  3. **Finished** → the JS reveals an inline result summary (no page load).
+- POST `/boshlash/` (`start_quiz`) creates a `QuizAttempt` (max attempts enforced server-side) and **redirects back to the lesson page**, where the in-progress attempt now renders inline.
+- Taking is **one question at a time** with immediate per-question feedback. A choice is picked, then "Javobni tekshirish" (disabled until a choice is selected) POSTs that single answer to `/savol/tekshir/` (`check_quiz_answer`). The server records the `QuizAnswer` (`update_or_create` on attempt+question) and returns `{is_correct, correct_choice_id, explanation, answered, total, finished, result}`; the UI locks the choices, highlights correct/wrong (green/red), shows the `explanation`, and the button becomes "Keyingi savol →" (or "Natijani ko'rish" on the last question). A progress bar + "N / total" counter track position. CSRF is read from the `csrftoken` cookie.
+- Grading is fully server-side (correct answers are never sent to the page until checked). When every question has an answer, `check_quiz_answer` calls `_finalize_quiz_attempt()` — sets score/passed/`completed_at`, returns the final `result`, and on pass marks the lesson `is_completed=True`, updates the streak, and may issue the course certificate.
+- Reload-resume: the inline JS reads `active_answered_ids_json` and skips to the first unanswered question. A completed attempt is no longer "active", so the page falls back to the hero + history.
+- Inline result: pass/fail badge, score, a primary "Keyingi dars →" (forward navigation, or "Kursga qaytish" at course end), and a "To'liq tahlil" link to the full per-question review page (`quiz_result`).
+- `quiz_result` page (`/natija/`): full per-question review (correct-answer highlight + explanation); reached from "To'liq tahlil" and from the history table's "Ko'rish".
+- `submit_quiz_answer` (`/javob/`) is the legacy all-at-once JSON grader — retained (routes through `_finalize_quiz_attempt()`) but no longer used by the UI. The old `quiz_attempt_view` / `quiz_take.html` / `quiz_attempt` URL were removed.
 
 ### Video Bookmarks (Xatcho'plar)
 - Per-user per-lesson timestamp bookmarks for video lessons only.

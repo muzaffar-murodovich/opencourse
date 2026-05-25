@@ -33,7 +33,57 @@
   </div>
 {% elif lesson.lesson_type == 'quiz' %}
   <div class="quiz-lesson-content">
-    {% if quizzes_with_meta %}
+    {% if active_attempt %}
+      <div class="quiz-take-inline" id="quiz-take"
+           data-check-url="{% url 'learning:check_quiz_answer' course.slug module.slug lesson.slug active_quiz.id active_attempt.id %}"
+           data-answered='{{ active_answered_ids_json }}'>
+        <div id="quiz-take-body">
+          <div class="quiz-take-header">
+            <h1>{{ active_quiz.title }}</h1>
+            <div class="quiz-progress">
+              <div class="quiz-progress-text"><span id="qp-current">1</span> / {{ active_questions|length }}</div>
+              <div class="quiz-progress-bar"><div class="quiz-progress-fill" id="qp-fill"></div></div>
+            </div>
+          </div>
+
+          {% for q in active_questions %}
+          <div class="quiz-question-block" data-qid="{{ q.id }}" data-type="{{ q.question_type }}" hidden>
+            <div class="qq-text">{{ q.text }}</div>
+            <div class="qq-choices">
+              {% for c in q.choices.all %}
+              <label class="qq-choice" data-cid="{{ c.id }}">
+                <input type="radio" name="q_{{ q.id }}" value="{{ c.id }}">
+                <span class="qq-radio"></span>
+                <span class="qq-label">{{ c.text }}</span>
+                <span class="qq-mark" aria-hidden="true"></span>
+              </label>
+              {% endfor %}
+            </div>
+            <div class="qq-explanation" hidden></div>
+          </div>
+          {% endfor %}
+
+          <div class="quiz-action-area">
+            <button type="button" class="btn btn-primary btn-lg" id="quiz-action-btn" disabled>Javobni tekshirish</button>
+            <span id="quiz-action-status" class="note-status"></span>
+          </div>
+        </div>
+
+        <div class="quiz-inline-result" id="quiz-inline-result" hidden>
+          <div class="qir-badge" id="qir-badge" aria-hidden="true"></div>
+          <h2 id="qir-title"></h2>
+          <div class="qir-score" id="qir-score"></div>
+          <div class="qir-actions">
+            {% if next_lesson %}
+              <a href="{% url 'learning:lesson_detail' course.slug next_lesson.module.slug next_lesson.slug %}" class="btn btn-primary">Keyingi dars →</a>
+            {% else %}
+              <a href="{% url 'learning:course_detail' course.slug %}" class="btn btn-primary">Kursga qaytish</a>
+            {% endif %}
+            <a href="{% url 'learning:quiz_result' course.slug module.slug lesson.slug active_quiz.id active_attempt.id %}" class="btn btn-secondary">To'liq tahlil</a>
+          </div>
+        </div>
+      </div>
+    {% elif quizzes_with_meta %}
       {% for qm in quizzes_with_meta %}
       <div class="quiz-hero">
         <div class="quiz-hero-icon">
@@ -52,62 +102,66 @@
         </div>
       </div>
 
-      {% if user.is_authenticated %}
-        {% if qm.attempts_remaining == 0 %}
-          <div class="quiz-limit-warn">
-            <p>Ushbu test uchun barcha urinishlardan foydalanib bo'ldingiz.</p>
-          </div>
-        {% else %}
-          <form method="post" action="{% url 'learning:start_quiz' course.slug module.slug lesson.slug qm.quiz.id %}">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-primary btn-lg quiz-start-btn">Testni boshlash</button>
-          </form>
-        {% endif %}
-
-        {% if qm.past_attempts %}
-        <div class="quiz-history">
-          <h3>Avvalgi urinishlar</h3>
-          <table class="quiz-history-table">
-            <thead>
-              <tr>
-                <th>Sana</th>
-                <th>Natija</th>
-                <th>Holat</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for a in qm.past_attempts %}
-              <tr>
-                <td>{{ a.completed_at|date:"d M Y, H:i" }}</td>
-                <td>{{ a.score|floatformat:0 }} / {{ a.max_score }} ({{ a.percentage }}%)</td>
-                <td>
-                  {% if a.passed %}
-                    <span class="badge badge-green">O'tdi</span>
-                  {% else %}
-                    <span class="badge badge-red">O'tmadi</span>
-                  {% endif %}
-                </td>
-                <td>
-                  <a href="{% url 'learning:quiz_result' course.slug module.slug lesson.slug qm.quiz.id a.id %}" class="btn btn-ghost btn-sm">Ko'rish</a>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+      {% if qm.attempts_remaining == 0 %}
+        <div class="quiz-limit-warn">
+          <p>Ushbu test uchun barcha urinishlardan foydalanib bo'ldingiz.</p>
         </div>
-        {% endif %}
       {% else %}
-        <p class="text-muted">Test topshirish uchun <a href="{% url 'users:login' %}">saytga kiring</a>.</p>
+        <form method="post" action="{% url 'learning:start_quiz' course.slug module.slug lesson.slug qm.quiz.id %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-primary btn-lg quiz-start-btn">Testni boshlash</button>
+        </form>
+      {% endif %}
+
+      {% if qm.past_attempts %}
+      <div class="quiz-history">
+        <h3>Avvalgi urinishlar</h3>
+        <table class="quiz-history-table">
+          <thead>
+            <tr>
+              <th>Sana</th>
+              <th>Natija</th>
+              <th>Holat</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in qm.past_attempts %}
+            <tr>
+              <td>{{ a.completed_at|date:"d M Y, H:i" }}</td>
+              <td>{{ a.score|floatformat:0 }} / {{ a.max_score }} ({{ a.percentage }}%)</td>
+              <td>
+                {% if a.passed %}
+                  <span class="badge badge-green">O'tdi</span>
+                {% else %}
+                  <span class="badge badge-red">O'tmadi</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="{% url 'learning:quiz_result' course.slug module.slug lesson.slug qm.quiz.id a.id %}" class="btn btn-ghost btn-sm">Ko'rish</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
       {% endif %}
       {% endfor %}
-    {% else %}
+    {% elif user.is_authenticated %}
       <div class="quiz-hero">
         <div class="quiz-hero-icon">
           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         </div>
         <h1>Test</h1>
         <p class="quiz-hero-desc">Bu dars uchun hali test qo'shilmagan.</p>
+      </div>
+    {% else %}
+      <div class="quiz-hero">
+        <div class="quiz-hero-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <h1>Test</h1>
+        <p class="quiz-hero-desc">Test topshirish uchun <a href="{% url 'users:login' %}">saytga kiring</a>.</p>
       </div>
     {% endif %}
   </div>
@@ -436,5 +490,139 @@
 {% if lesson.lesson_type == 'video' %}
 <script src="{% static 'js/lesson_bookmarks.js' %}"></script>
 {% endif %}
+{% endif %}
+
+{% if lesson.lesson_type == 'quiz' and active_attempt %}
+<script>
+(function () {
+  'use strict';
+
+  var root = document.getElementById('quiz-take');
+  if (!root) { return; }
+
+  var checkUrl = root.dataset.checkUrl;
+  var answeredIds = JSON.parse(root.dataset.answered || '[]');
+  var blocks = Array.prototype.slice.call(root.querySelectorAll('.quiz-question-block'));
+  var btn = document.getElementById('quiz-action-btn');
+  var statusEl = document.getElementById('quiz-action-status');
+  var fill = document.getElementById('qp-fill');
+  var currentLabel = document.getElementById('qp-current');
+  var total = blocks.length;
+
+  function csrf() {
+    var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
+  // Resume: start at the first question with no recorded answer yet.
+  var answered = {};
+  answeredIds.forEach(function (id) { answered[String(id)] = true; });
+  var index = 0;
+  while (index < total && answered[blocks[index].dataset.qid]) { index += 1; }
+  if (index >= total) { index = total - 1; }
+
+  var mode = 'check';       // 'check' grades; 'next' advances / shows result
+  var finalResult = null;   // populated once the attempt is finished
+
+  function selectedRadio(block) { return block.querySelector('input[type="radio"]:checked'); }
+
+  function showQuestion(i) {
+    blocks.forEach(function (b, bi) { b.hidden = (bi !== i); });
+    currentLabel.textContent = i + 1;
+    fill.style.width = (i / total * 100) + '%';
+    mode = 'check';
+    btn.textContent = 'Javobni tekshirish';
+    btn.disabled = !selectedRadio(blocks[i]);
+    statusEl.textContent = '';
+  }
+
+  function lockChoices(block, correctId) {
+    var picked = selectedRadio(block);
+    var pickedId = picked ? picked.value : null;
+    block.querySelectorAll('input[type="radio"]').forEach(function (r) { r.disabled = true; });
+    block.querySelectorAll('.qq-choice').forEach(function (choice) {
+      var cid = choice.dataset.cid;
+      if (String(cid) === String(correctId)) {
+        choice.classList.add('qq-correct');
+      } else if (cid === pickedId) {
+        choice.classList.add('qq-wrong');
+      }
+    });
+  }
+
+  function showResult(res) {
+    var panel = document.getElementById('quiz-inline-result');
+    document.getElementById('quiz-take-body').hidden = true;
+    panel.classList.add(res.passed ? 'qir-passed' : 'qir-failed');
+    document.getElementById('qir-badge').textContent = res.passed ? '✓' : '✗';
+    document.getElementById('qir-title').textContent = res.passed
+      ? 'Tabriklaymiz! Testdan o\'tdingiz.'
+      : 'Afsuski, testdan o\'ta olmadingiz.';
+    document.getElementById('qir-score').textContent =
+      Math.round(res.score) + ' / ' + res.max_score + ' (' + res.percentage + '%)';
+    panel.hidden = false;
+    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  blocks.forEach(function (block) {
+    block.addEventListener('change', function (e) {
+      if (mode !== 'check') { return; }
+      if (e.target && e.target.type === 'radio') {
+        block.querySelectorAll('.qq-choice').forEach(function (c) { c.classList.remove('qq-selected'); });
+        e.target.closest('.qq-choice').classList.add('qq-selected');
+        btn.disabled = false;
+      }
+    });
+  });
+
+  function gradeCurrent() {
+    var block = blocks[index];
+    var picked = selectedRadio(block);
+    if (!picked) { return; }
+    btn.disabled = true;
+    btn.textContent = 'Tekshirilmoqda...';
+    statusEl.textContent = '';
+
+    fetch(checkUrl, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrf(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question_id: block.dataset.qid, choice_id: picked.value }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (typeof data.is_correct === 'undefined') { throw new Error('bad response'); }
+        lockChoices(block, data.correct_choice_id);
+        if (data.explanation) {
+          var ex = block.querySelector('.qq-explanation');
+          ex.textContent = data.explanation;
+          ex.hidden = false;
+        }
+        fill.style.width = ((index + 1) / total * 100) + '%';
+        finalResult = data.result;
+        mode = 'next';
+        btn.disabled = false;
+        btn.textContent = (index >= total - 1) ? 'Natijani ko\'rish' : 'Keyingi savol →';
+      })
+      .catch(function () {
+        statusEl.textContent = 'Xatolik yuz berdi. Qayta urinib ko\'ring.';
+        btn.disabled = false;
+        btn.textContent = 'Javobni tekshirish';
+      });
+  }
+
+  btn.addEventListener('click', function () {
+    if (mode === 'check') {
+      gradeCurrent();
+    } else if (index >= total - 1) {
+      if (finalResult) { showResult(finalResult); }
+    } else {
+      index += 1;
+      showQuestion(index);
+    }
+  });
+
+  if (total) { showQuestion(index); }
+})();
+</script>
 {% endif %}
 {% endblock %}
