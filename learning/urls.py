@@ -148,9 +148,9 @@ urlpatterns = [
         name='start_quiz',
     ),
     path(
-        '<slug:course_slug>/<slug:module_slug>/<slug:lesson_slug>/test/<int:quiz_id>/urinish/<int:attempt_id>/',
-        views.quiz_attempt_view,
-        name='quiz_attempt',
+        '<slug:course_slug>/<slug:module_slug>/<slug:lesson_slug>/test/<int:quiz_id>/urinish/<int:attempt_id>/savol/tekshir/',
+        views.check_quiz_answer,
+        name='check_quiz_answer',
     ),
     path(
         '<slug:course_slug>/<slug:module_slug>/<slug:lesson_slug>/test/<int:quiz_id>/urinish/<int:attempt_id>/javob/',
