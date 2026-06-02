@@ -1,6 +1,7 @@
 import json
 import re
 import requests as http_requests
+from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth import login, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
@@ -44,21 +45,108 @@ def _check_rate_limit(ip, max_requests=60, window=60, prefix='check'):
     return count > max_requests
 
 
+def _get_or_create_telegram_user(telegram_id, first_name, last_name, username, photo_url):
+    """Get or create a User + TelegramProfile from Telegram identity data.
+
+    Returns (user, is_new_user). Caller is responsible for the surrounding transaction.
+    """
+    try:
+        profile = TelegramProfile.objects.select_related('user').get(telegram_id=telegram_id)
+        user = profile.user
+        is_new_user = False
+    except TelegramProfile.DoesNotExist:
+        chosen_username = (
+            username
+            if username and not User.objects.filter(username=username).exists()
+            else f'tg_{telegram_id}'
+        )
+        user = User.objects.create(
+            username=chosen_username,
+            first_name=first_name,
+            last_name=last_name,
+        )
+        user.set_unusable_password()
+        user.save(update_fields=['username', 'first_name', 'last_name', 'password'])
+        profile = TelegramProfile(user=user, telegram_id=telegram_id)
+        is_new_user = True
+
+    profile.first_name = first_name
+    profile.last_name = last_name
+    profile.username = username
+    profile.photo_url = photo_url
+    profile.save()
+
+    if not is_new_user:
+        user.first_name = first_name
+        user.last_name = last_name
+        user.save(update_fields=['first_name', 'last_name'])
+
+    return user, is_new_user
+
+
 class TelegramLoginView(View):
-    """Generates a one-time token and shows the Telegram auth page."""
+    """Login page: bot-link auth (polling) + bot-issued 6-digit code submission."""
+    template_name = 'registration/login.html'
 
     def get(self, request):
         if request.user.is_authenticated:
             return redirect('/users/profile/')
+        return render(request, self.template_name, self._context())
+
+    def post(self, request):
+        if request.user.is_authenticated:
+            return redirect('/users/profile/')
+
+        if _check_rate_limit(_client_ip(request), max_requests=10, window=60, prefix='code'):
+            return render(request, self.template_name, self._context(
+                code_error="Juda ko'p urinish. Bir necha daqiqadan keyin qayta urinib ko'ring.",
+            ))
+
+        raw = request.POST.get('short_code', '')
+        code = re.sub(r'\D', '', raw)
+        if len(code) != 6:
+            return render(request, self.template_name, self._context(
+                code_error="Kod 6 ta raqamdan iborat bo'lishi kerak.",
+                code_value=raw,
+            ))
+
+        cutoff = timezone.now() - timedelta(minutes=10)
+        auth_token = (
+            TelegramAuthToken.objects
+            .filter(
+                short_code=code,
+                confirmed_at__isnull=False,
+                user__isnull=False,
+                created_at__gt=cutoff,
+            )
+            .select_related('user')
+            .order_by('-created_at')
+            .first()
+        )
+        if auth_token is None:
+            return render(request, self.template_name, self._context(
+                code_error="Kod noto'g'ri yoki muddati tugagan. Botdan yangi kod oling.",
+                code_value=raw,
+            ))
+
+        user = auth_token.user
+        is_new_user = auth_token.is_new_user
+        auth_token.delete()  # one-time use
+        login(request, user)
+        redirect_url = '/users/profile/' if is_new_user else settings.LOGIN_REDIRECT_URL
+        return redirect(redirect_url)
+
+    def _context(self, code_error=None, code_value=''):
         auth_token = TelegramAuthToken.generate()
         bot_username = getattr(settings, 'TELEGRAM_BOT_USERNAME', 'ochiqkurs_bot')
         bot_url = f'https://t.me/{bot_username}?start={auth_token.token}'
-        return render(request, 'registration/login.html', {
+        return {
             'bot_url': bot_url,
             'token': auth_token.token,
-            'short_code': auth_token.short_code,
             'bot_username': bot_username,
-        })
+            'code_error': code_error,
+            'code_value': code_value,
+        }
 
 
 # Signup is the same Telegram-based flow as login.
@@ -68,7 +156,7 @@ class SignupView(TelegramLoginView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class TelegramConfirmView(View):
-    """Called by the Telegram bot after user presses Start."""
+    """Called by the Telegram bot after user presses Start (bot-link flow)."""
 
     def post(self, request):
         secret = request.headers.get('X-Bot-Secret', '')
@@ -99,37 +187,11 @@ class TelegramConfirmView(View):
             return JsonResponse({'error': 'expired or already confirmed'}, status=400)
 
         with transaction.atomic():
-            try:
-                profile = TelegramProfile.objects.select_related('user').get(telegram_id=telegram_id)
-                user = profile.user
-            except TelegramProfile.DoesNotExist:
-                chosen_username = (
-                    username
-                    if username and not User.objects.filter(username=username).exists()
-                    else f'tg_{telegram_id}'
-                )
-                user = User.objects.create(
-                    username=chosen_username,
-                    first_name=first_name,
-                    last_name=last_name,
-                )
-                user.set_unusable_password()
-                user.save(update_fields=['username', 'first_name', 'last_name', 'password'])
-                profile = TelegramProfile(user=user, telegram_id=telegram_id)
-                auth_token.is_new_user = True
-
-            profile.first_name = first_name
-            profile.last_name = last_name
-            profile.username = username
-            profile.photo_url = photo_url
-            profile.save()
-
-            if not auth_token.is_new_user:
-                user.first_name = first_name
-                user.last_name = last_name
-                user.save(update_fields=['first_name', 'last_name'])
-
+            user, is_new_user = _get_or_create_telegram_user(
+                telegram_id, first_name, last_name, username, photo_url,
+            )
             auth_token.user = user
+            auth_token.is_new_user = is_new_user
             auth_token.confirmed_at = timezone.now()
             auth_token.save()
 
@@ -137,9 +199,15 @@ class TelegramConfirmView(View):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class ResolveCodeView(View):
-    """Called by the Telegram bot to exchange a 6-digit login code for the full token.
-    Gated by the same X-Bot-Secret check as TelegramConfirmView."""
+class IssueCodeView(View):
+    """Called by the Telegram bot when a user requests a login code.
+
+    The bot has already authenticated the Telegram identity, so the server
+    simply mints a pre-confirmed token tied to that user and returns a
+    short 6-digit code. The user types this code on the website to sign in.
+
+    Gated by the same X-Bot-Secret check as TelegramConfirmView.
+    """
 
     def post(self, request):
         secret = request.headers.get('X-Bot-Secret', '')
@@ -151,21 +219,25 @@ class ResolveCodeView(View):
         except (json.JSONDecodeError, ValueError):
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
-        code = re.sub(r'\D', '', data.get('short_code', ''))
-        if len(code) != 6:
-            return JsonResponse({'error': 'not_found'}, status=404)
+        telegram_id = data.get('telegram_id')
+        first_name = data.get('first_name', '').strip()
+        last_name = data.get('last_name', '').strip()
+        username = data.get('username', '').strip()
+        photo_url = data.get('photo_url', '').strip()
 
-        # A code may be reused by a new token after the old one expires, so pick the latest.
-        auth_token = (
-            TelegramAuthToken.objects.filter(short_code=code).order_by('-created_at').first()
-        )
-        if auth_token is None:
-            return JsonResponse({'error': 'not_found'}, status=404)
+        if not telegram_id:
+            return JsonResponse({'error': 'telegram_id is required'}, status=400)
 
-        if not auth_token.is_valid():
-            return JsonResponse({'error': 'expired'}, status=410)
+        with transaction.atomic():
+            user, is_new_user = _get_or_create_telegram_user(
+                telegram_id, first_name, last_name, username, photo_url,
+            )
+            auth_token = TelegramAuthToken.issue_for_user(user, is_new_user)
 
-        return JsonResponse({'token': auth_token.token})
+        return JsonResponse({
+            'short_code': auth_token.short_code,
+            'expires_in_seconds': 600,
+        })
 
 
 class CheckTokenView(View):

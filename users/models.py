@@ -35,13 +35,12 @@ class TelegramAuthToken(models.Model):
 
     @classmethod
     def _generate_short_code(cls):
-        """6-digit numeric code, unique among currently valid (unexpired, unconfirmed) tokens."""
+        """6-digit numeric code, unique among tokens issued within the last 10 minutes."""
         cutoff = timezone.now() - timedelta(minutes=10)
         code = ''.join(secrets.choice('0123456789') for _ in range(6))
         for _ in range(10):
             clash = cls.objects.filter(
                 short_code=code,
-                confirmed_at__isnull=True,
                 created_at__gt=cutoff,
             ).exists()
             if not clash:
@@ -51,8 +50,23 @@ class TelegramAuthToken(models.Model):
 
     @classmethod
     def generate(cls):
+        """Create a pending browser-flow token (used by the bot-link login)."""
         token = secrets.token_hex(32)  # 64 hex chars
-        return cls.objects.create(token=token, short_code=cls._generate_short_code())
+        return cls.objects.create(token=token)
+
+    @classmethod
+    def issue_for_user(cls, user, is_new_user):
+        """Create a pre-confirmed token with a short code for the bot-issued code flow.
+
+        The token is consumed by deletion when the user enters the code on the website.
+        """
+        return cls.objects.create(
+            token=secrets.token_hex(32),
+            short_code=cls._generate_short_code(),
+            user=user,
+            is_new_user=is_new_user,
+            confirmed_at=timezone.now(),
+        )
 
 
 class TelegramProfile(models.Model):
