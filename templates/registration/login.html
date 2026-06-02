@@ -8,7 +8,6 @@
     <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12 11 14 15 10"/><circle cx="12" cy="12" r="10"/></svg>
   </div>
   <h1>Hisobingizga kiring</h1>
-  <p class="login-sub">Telegram orqali xavfsiz va tez kirish. Parol kerak emas.</p>
 
   <a href="{{ bot_url }}" id="tg-btn" target="_blank" rel="noopener noreferrer" class="tg-btn">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -17,39 +16,29 @@
     <span>Telegram bot orqali kirish</span>
   </a>
 
-  <p class="tg-note">
-    Telegram hisobingizga kirilmaydi. Faqat shaxsingizni tasdiqlash uchun ishlatiladi.
-  </p>
-
   <div id="tg-status" style="display:none">
     <div class="tg-spinner"></div>
     <p>Telegram botiga o'ting va <strong>Start</strong> tugmasini bosing…</p>
     <p id="tg-error" class="form-errors" style="display:none"></p>
   </div>
 
-  <div class="login-divider"><span>yoki</span></div>
+  <details class="login-alt"{% if code_error %} open{% endif %}>
+    <summary>Boshqa kirish usullari</summary>
 
-  <div class="login-altcode">
-    <h2 class="login-altcode-title">Bot'dan olingan kod bilan kiring</h2>
-    <p class="login-altcode-help">
-      Telegramda <a href="https://t.me/{{ bot_username }}" target="_blank" rel="noopener noreferrer">@{{ bot_username }}</a>
-      botiga <code class="login-cmd">/login</code> buyrug'ini yuboring. Bot 6 ta raqamli kodni qaytaradi —
-      uni quyiga kiriting.
-    </p>
-    <form method="post" class="login-code-form" novalidate>
-      {% csrf_token %}
-      <input type="text" name="short_code" inputmode="numeric" pattern="[0-9]*" maxlength="7"
-             autocomplete="one-time-code" class="login-code-input"
-             placeholder="123456" value="{{ code_value }}" aria-label="Kod">
-      <button type="submit" class="btn btn-primary login-code-submit">Kirish</button>
-    </form>
-    {% if code_error %}<p class="form-errors login-code-error">{{ code_error }}</p>{% endif %}
-  </div>
+    <div class="login-alt-body">
+      <p class="login-alt-label">Bot'dan olingan kod</p>
+      <form method="post" class="login-code-form" novalidate>
+        {% csrf_token %}
+        <input type="text" name="short_code" inputmode="numeric" pattern="[0-9]*" maxlength="7"
+               autocomplete="one-time-code" class="login-code-input"
+               placeholder="123 456" value="{{ code_value }}" aria-label="Kod">
+        <button type="submit" class="btn btn-primary login-code-submit">Kirish</button>
+      </form>
+      {% if code_error %}<p class="form-errors login-code-error">{{ code_error }}</p>{% endif %}
 
-  <p class="login-altpwd">
-    Allaqachon parol o'rnatganmisiz?
-    <a href="{% url 'users:login_password' %}">Username va parol bilan kirish</a>
-  </p>
+      <a href="{% url 'users:login_password' %}" class="login-alt-link">Parol bilan kirish &rarr;</a>
+    </div>
+  </details>
 </div>
 
 <script>
