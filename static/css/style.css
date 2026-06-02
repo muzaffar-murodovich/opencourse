@@ -1999,27 +1999,34 @@ details[open] > .module-summary::before { transform: rotate(45deg); }
 .login-altcode-title { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
 .login-altcode-help { font-size: .85rem; color: var(--muted); margin-bottom: 14px; }
 .login-altcode-help a { color: var(--brand-600); font-weight: 600; }
-.login-code {
-  display: inline-block;
+.login-cmd {
   font-family: var(--font-mono, monospace);
-  font-size: 1.7rem; font-weight: 700; letter-spacing: .12em;
-  padding: 12px 22px;
+  font-size: .85rem;
+  padding: 1px 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+}
+.login-code-form {
+  display: flex; gap: 8px; align-items: stretch;
+  margin-top: 12px;
+}
+.login-code-input {
+  flex: 1;
+  font-family: var(--font-mono, monospace);
+  font-size: 1.4rem; font-weight: 700; letter-spacing: .18em; text-align: center;
+  padding: 10px 14px;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   color: var(--text);
-  cursor: pointer;
-  transition: border-color var(--t-fast), color var(--t-fast);
+  transition: border-color var(--t-fast);
 }
-.login-code:hover { border-color: var(--brand-500); }
-.login-code.copied { border-color: var(--brand-500); color: var(--brand-600); }
-.login-code-feedback {
-  display: block;
-  margin-top: 8px; height: 1em;
-  font-size: .8rem; color: var(--brand-600);
-  opacity: 0; transition: opacity var(--t-fast);
-}
-.login-code-feedback.visible { opacity: 1; }
+.login-code-input:focus { outline: none; border-color: var(--brand-500); }
+.login-code-input::placeholder { color: var(--text-soft); letter-spacing: .18em; font-weight: 500; }
+.login-code-submit { flex: 0 0 auto; padding-left: 18px; padding-right: 18px; }
+.login-code-error { margin-top: 10px; text-align: left; }
 .login-altpwd { margin-top: 22px; font-size: .85rem; color: var(--muted); }
 .login-altpwd a { color: var(--brand-600); font-weight: 600; }
 .login-form { text-align: left; margin-top: 8px; }
