@@ -90,7 +90,10 @@ class UsernamePasswordLoginForm(forms.Form):
 
     def clean(self):
         cleaned = super().clean()
-        username = cleaned.get('username')
+        # Passwords are only ever set via SetUsernamePasswordForm, which stores the
+        # username lowercased. Lowercase here too so casing never blocks a valid login.
+        username = (cleaned.get('username') or '').strip().lower()
+        cleaned['username'] = username
         password = cleaned.get('password')
         if username and password:
             user = authenticate(username=username, password=password)
