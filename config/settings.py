@@ -64,6 +64,17 @@ DATABASES = {
     }
 }
 
+# --- Cache ---
+# DB-backed cache so the rate limiter is shared across Gunicorn workers and
+# survives restarts (the default LocMemCache is per-process). Requires the
+# cache table to exist: `python manage.py createcachetable` (run on deploy).
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'cache_table',
+    }
+}
+
 # --- Password validators ---
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},

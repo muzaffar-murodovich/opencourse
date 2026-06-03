@@ -25,6 +25,7 @@ jobs:
             source venv/bin/activate
             pip install -r requirements.txt --quiet
             python manage.py migrate --noinput
+            python manage.py createcachetable
             python manage.py collectstatic --noinput
             sudo systemctl restart gunicorn-ochiqkurs
 
