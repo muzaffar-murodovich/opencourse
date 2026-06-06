@@ -162,7 +162,7 @@
             <div class="announce-item">
               <div class="ai-title">{% if a.is_pinned %}<span class="ai-pin">📌</span> {% endif %}{{ a.title }}</div>
               <div class="ai-body">{{ a.body|linebreaksbr }}</div>
-              <div class="ai-meta">{{ a.created_at|date:"d M Y" }}</div>
+              <div class="ai-meta">{{ a.created_at|uz_date }}</div>
             </div>
           {% endfor %}
         </div>
@@ -326,7 +326,7 @@
               <div class="review-head">
                 <span class="review-name">{{ r.user.first_name|default:r.user.username }}</span>
                 <span class="stars-glyphs">{{ r.rating|stars }}</span>
-                <span class="review-date">· {{ r.created_at|date:"d M Y" }}</span>
+                <span class="review-date">· {{ r.created_at|uz_date }}</span>
               </div>
               {% if r.comment %}<p class="review-text">{{ r.comment }}</p>{% endif %}
             </div>
