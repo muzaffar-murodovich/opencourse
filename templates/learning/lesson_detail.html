@@ -128,7 +128,7 @@
           <tbody>
             {% for a in qm.past_attempts %}
             <tr>
-              <td>{{ a.completed_at|date:"d M Y, H:i" }}</td>
+              <td>{{ a.completed_at|uz_datetime }}</td>
               <td>{{ a.score|floatformat:0 }} / {{ a.max_score }} ({{ a.percentage }}%)</td>
               <td>
                 {% if a.passed %}
@@ -350,7 +350,7 @@
               <span class="avatar avatar-sm">{{ q.user.first_name|default:q.user.username|slice:":1"|upper }}</span>
               <div class="qa-meta">
                 <div class="qa-author">{{ q.user.first_name|default:q.user.username }}</div>
-                <div class="qa-time">{{ q.created_at|date:"d M Y, H:i" }}</div>
+                <div class="qa-time">{{ q.created_at|uz_datetime }}</div>
               </div>
               {% if q.is_resolved %}<span class="qa-resolved">✓ Hal etilgan</span>{% endif %}
             </div>
@@ -371,7 +371,7 @@
                               {{ a.user.first_name|default:a.user.username }}
                               {% if a.is_instructor %}<span class="qa-instructor">O'qituvchi</span>{% endif %}
                             </div>
-                            <div class="qa-time">{{ a.created_at|date:"d M Y, H:i" }}</div>
+                            <div class="qa-time">{{ a.created_at|uz_datetime }}</div>
                           </div>
                         </div>
                         <div class="qa-body">{{ a.body|linebreaksbr }}</div>
@@ -407,7 +407,7 @@
         <div class="announce-item">
           <div class="ai-title">{% if a.is_pinned %}<span class="ai-pin">📌</span> {% endif %}{{ a.title }}</div>
           <div class="ai-body">{{ a.body|linebreaksbr }}</div>
-          <div class="ai-meta">{{ a.created_at|date:"d M Y" }}</div>
+          <div class="ai-meta">{{ a.created_at|uz_date }}</div>
         </div>
       {% endfor %}
     </div>

@@ -60,7 +60,7 @@
         <tbody>
           {% for a in past_attempts %}
           <tr>
-            <td>{{ a.completed_at|date:"d M Y, H:i" }}</td>
+            <td>{{ a.completed_at|uz_datetime }}</td>
             <td>{{ a.score|floatformat:0 }} / {{ a.max_score }} ({{ a.percentage }}%)</td>
             <td>
               {% if a.passed %}

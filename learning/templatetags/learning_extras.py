@@ -1,4 +1,5 @@
 from django import template
+from django.utils import timezone
 from django.utils.safestring import mark_safe
 
 register = template.Library()
@@ -107,17 +108,44 @@ _UZ_MONTHS = [
 ]
 
 
+def _localize(value):
+    """Convert an aware datetime to the active tz (Asia/Tashkent).
+
+    Django's built-in `date` filter localizes before formatting; do the same so
+    the day/time we render match it (a UTC-stored datetime near midnight would
+    otherwise show the wrong day).
+    """
+    if hasattr(value, 'hour') and timezone.is_aware(value):
+        return timezone.localtime(value)
+    return value
+
+
 @register.filter
 def uz_date(value):
     """Format a date/datetime in Uzbek, e.g. '6-iyun, 2026-yil'.
 
     Django's built-in `date` filter renders English month names because
-    LANGUAGE_CODE is 'en-us' ('06 Jun 2026'), which looks wrong on a formal
-    Uzbek certificate.
+    LANGUAGE_CODE is 'en-us' ('06 Jun 2026'), which looks wrong in an Uzbek UI.
     """
     if not value:
         return ''
     try:
-        return f"{value.day}-{_UZ_MONTHS[value.month]}, {value.year}-yil"
+        v = _localize(value)
+        return f"{v.day}-{_UZ_MONTHS[v.month]}, {v.year}-yil"
     except (AttributeError, IndexError):
         return ''
+
+
+@register.filter
+def uz_datetime(value):
+    """Like `uz_date`, but also appends the local time: '6-iyun, 2026-yil, 14:30'."""
+    if not value:
+        return ''
+    try:
+        v = _localize(value)
+        out = f"{v.day}-{_UZ_MONTHS[v.month]}, {v.year}-yil"
+    except (AttributeError, IndexError):
+        return ''
+    if hasattr(v, 'hour'):
+        out += f", {v.hour:02d}:{v.minute:02d}"
+    return out
