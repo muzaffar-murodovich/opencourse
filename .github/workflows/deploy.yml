@@ -19,16 +19,17 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            set -e
             cd ~/opencourse
-            git restore .
-            git pull origin master
+            git fetch origin master
+            git reset --hard origin/master
             source venv/bin/activate
             pip install -r requirements.txt --quiet
             python manage.py migrate --noinput
             python manage.py createcachetable
             python manage.py clear_expired_tokens
             python manage.py collectstatic --noinput
-            sudo systemctl restart gunicorn-ochiqkurs
+            sudo /usr/bin/systemctl restart gunicorn-ochiqkurs
 
       - name: Purge Cloudflare cache
         run: |
