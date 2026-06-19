@@ -187,6 +187,21 @@ class HomeView(View):
                     ).order_by('-avg_rating', '-rating_count')[:6]
                 )
 
+        # Hero card thumbnail (first lesson of ReactJS course)
+        hero_course_thumbnail = None
+        try:
+            reactjs = Course.objects.get(slug='reactjs')
+            first_lesson = (
+                Lesson.objects
+                .filter(module__course=reactjs)
+                .order_by('module__order', 'order')
+                .first()
+            )
+            if first_lesson and first_lesson.youtube_video_id:
+                hero_course_thumbnail = f'https://img.youtube.com/vi/{first_lesson.youtube_video_id}/hqdefault.jpg'
+        except Course.DoesNotExist:
+            pass
+
         return render(request, self.template_name, {
             'featured': featured,
             'trending': trending,
@@ -205,6 +220,7 @@ class HomeView(View):
             'recent_activity': recent_activity,
             'recommended': recommended,
             'wishlist_ids': _user_wishlist_ids(request.user),
+            'hero_course_thumbnail': hero_course_thumbnail,
         })
 
 
