@@ -1211,7 +1211,7 @@ html[data-theme="dark"] .message.info    { background: rgba(59,130,246,.12); bor
 .course-hero {
   /* Theme-adaptive hero: light by default (daytime), dark overridden below.
      All hero text reads from these --ch-* vars so both modes stay legible. */
-  --ch-bg: var(--brand-50);
+  --ch-bg: var(--brand-100);
   --ch-text: var(--gray-900);
   --ch-text-soft: var(--gray-700);
   --ch-mute: var(--gray-500);
