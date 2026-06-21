@@ -8,7 +8,8 @@ __pycache__/
 .vscode
 staticfiles/
 media/
-.claude
+.claude/*
+!.claude/skills
 /venv
 deploy.sh
 playlist-fetcher/output.json
