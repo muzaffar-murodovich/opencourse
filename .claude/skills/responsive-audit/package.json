@@ -1,0 +1,9 @@
+{
+  "name": "responsive-audit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright responsive audit harness for the Ochiq Kurs LMS",
+  "dependencies": {
+    "playwright": "^1.61.0"
+  }
+}
